@@ -7,7 +7,17 @@ import { z } from "zod";
 
 type ModelTier = "fast" | "standard";
 
-const DEFAULT_MODELS: Record<ModelTier, string> = {
+const ALLOWED_MODELS = [
+  "@cf/qwen/qwen3-30b-a3b-fp8",
+] as const satisfies ReadonlyArray<keyof AiModels>;
+
+type AllowedModel = (typeof ALLOWED_MODELS)[number];
+
+function isAllowedModel(model: string): model is AllowedModel {
+  return (ALLOWED_MODELS as readonly string[]).includes(model);
+}
+
+const DEFAULT_MODELS: Record<ModelTier, keyof AiModels> = {
   fast: "@cf/qwen/qwen3-30b-a3b-fp8",
   standard: "@cf/qwen/qwen3-30b-a3b-fp8",
 };
@@ -15,10 +25,15 @@ const DEFAULT_MODELS: Record<ModelTier, string> = {
 // KV keys: config:model:fast, config:model:standard
 // Set via Cloudflare dashboard KV editor to override defaults.
 
-async function resolveModel(env: Env, tier: ModelTier): Promise<string> {
+async function resolveModel(env: Env, tier: ModelTier): Promise<keyof AiModels> {
   const kvKey = `config:model:${tier}`;
   const override = await env.OAUTH_KV.get(kvKey);
-  return override ?? DEFAULT_MODELS[tier];
+  if (override !== null) {
+    if (isAllowedModel(override)) return override;
+    // Self-heal: invalid model in KV — delete it, fall back to default
+    await env.OAUTH_KV.delete(kvKey);
+  }
+  return DEFAULT_MODELS[tier];
 }
 
 const SYSTEM_PROMPT = `You are a code generation engine. You receive precise instructions and optional context (API docs, existing code, etc.) already assembled by an orchestrating AI. Your job is to generate clean, correct, production-ready code only. Do not explain unless asked. Do not ask clarifying questions. Use the provided context as ground truth for APIs and patterns. Do not use thinking or reasoning tags - output the result directly.`;
