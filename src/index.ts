@@ -113,9 +113,13 @@ interface Env {
 
 // --- Workers AI helper ---
 
-async function callModel(env: Env, model: string, userPrompt: string, maxTokens: number): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const response = await env.AI.run(model as any, {
+async function callModel(
+  env: Env,
+  model: keyof AiModels,
+  userPrompt: string,
+  maxTokens: number,
+): Promise<string> {
+  const response = await env.AI.run(model, {
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userPrompt },
@@ -129,23 +133,7 @@ async function callModel(env: Env, model: string, userPrompt: string, maxTokens:
 
 async function runAI(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 4096): Promise<string> {
   const model = await resolveModel(env, tier);
-
-  try {
-    return await callModel(env, model, userPrompt, maxTokens);
-  } catch (err) {
-    const isModelError =
-      err instanceof Error &&
-      (err.message.includes("Unknown model") ||
-       err.message.includes("not found") ||
-       err.message.includes("invalid model"));
-
-    if (isModelError && model !== DEFAULT_MODELS[tier]) {
-      // Bad KV config — delete it and retry with default
-      await env.OAUTH_KV.delete(`config:model:${tier}`);
-      return await callModel(env, DEFAULT_MODELS[tier], userPrompt, maxTokens);
-    }
-    throw err;
-  }
+  return callModel(env, model, userPrompt, maxTokens);
 }
 
 // --- MCP Server factory ---
