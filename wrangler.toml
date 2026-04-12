@@ -1,0 +1,16 @@
+name = "cf-code-assistant"
+main = "src/index.ts"
+compatibility_date = "2026-04-12"
+compatibility_flags = ["nodejs_compat"]
+
+[ai]
+binding = "AI"
+
+# Create with: npx wrangler kv namespace create "OAUTH_KV"
+# Then paste the id below
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+[observability]
+enabled = true
