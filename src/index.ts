@@ -149,10 +149,10 @@ function createMcpServer(env: Env) {
     {
       description: "Generate production-ready code from a prompt. Claude should pass any gathered context (docs, API refs, existing code) via the context parameter.",
       inputSchema: {
-        prompt: z.string().describe("What code to generate"),
-        context: z.string().optional().describe("Relevant docs, API references, or existing code gathered by Claude"),
-        language: z.string().optional().describe("Target language (e.g. typescript, python, rust)"),
-        style: z.string().optional().describe("Style guidance (e.g. functional, class-based, minimal)"),
+        prompt: z.string().max(20_000).trim().describe("What code to generate"),
+        context: z.string().max(50_000).trim().optional().describe("Relevant docs, API references, or existing code gathered by Claude"),
+        language: z.string().max(100).trim().optional().describe("Target language (e.g. typescript, python, rust)"),
+        style: z.string().max(100).trim().optional().describe("Style guidance (e.g. functional, class-based, minimal)"),
       },
     },
     async ({ prompt, context, language, style }) => {
@@ -172,8 +172,8 @@ function createMcpServer(env: Env) {
     {
       description: "Review code for bugs, style issues, and potential problems. Returns structured findings.",
       inputSchema: {
-        code: z.string().describe("The code to review"),
-        criteria: z.string().optional().describe("Specific review criteria (e.g. security, performance, readability)"),
+        code: z.string().max(100_000).trim().describe("The code to review"),
+        criteria: z.string().max(2_000).trim().optional().describe("Specific review criteria (e.g. security, performance, readability)"),
       },
     },
     async ({ code, criteria }) => {
@@ -197,8 +197,8 @@ function createMcpServer(env: Env) {
     {
       description: "Apply mechanical transformations to code: rename, reformat, convert patterns, add types, etc.",
       inputSchema: {
-        code: z.string().describe("The code to transform"),
-        instruction: z.string().describe("What transformation to apply"),
+        code: z.string().max(100_000).trim().describe("The code to transform"),
+        instruction: z.string().max(10_000).trim().describe("What transformation to apply"),
       },
     },
     async ({ code, instruction }) => {
@@ -218,8 +218,8 @@ function createMcpServer(env: Env) {
     {
       description: "Generate test scaffolding for a given code block.",
       inputSchema: {
-        code: z.string().describe("The code to generate tests for"),
-        framework: z.string().optional().describe("Test framework (default: vitest)"),
+        code: z.string().max(100_000).trim().describe("The code to generate tests for"),
+        framework: z.string().max(100).trim().optional().describe("Test framework (default: vitest)"),
       },
     },
     async ({ code, framework }) => {
@@ -240,7 +240,7 @@ function createMcpServer(env: Env) {
     {
       description: "Handle simple, self-contained tasks that don't need file context. Good for: regex, one-off snippets, data transforms, format conversions.",
       inputSchema: {
-        instruction: z.string().describe("What to do"),
+        instruction: z.string().max(10_000).trim().describe("What to do"),
       },
     },
     async ({ instruction }) => {
@@ -254,7 +254,7 @@ function createMcpServer(env: Env) {
     {
       description: "Explain what code does. Depth controls verbosity: brief (1-2 sentences), detailed (full walkthrough), eli5 (non-technical analogy).",
       inputSchema: {
-        code: z.string().describe("The code to explain"),
+        code: z.string().max(100_000).trim().describe("The code to explain"),
         depth: z.enum(["brief", "detailed", "eli5"]).optional().describe("Explanation depth (default: brief)"),
       },
     },
@@ -280,7 +280,7 @@ function createMcpServer(env: Env) {
     {
       description: "Generate documentation for code. Supports JSDoc, TSDoc, and inline comment styles.",
       inputSchema: {
-        code: z.string().describe("The code to document"),
+        code: z.string().max(100_000).trim().describe("The code to document"),
         style: z.enum(["jsdoc", "tsdoc", "inline"]).optional().describe("Documentation style (default: tsdoc)"),
       },
     },
@@ -306,7 +306,7 @@ function createMcpServer(env: Env) {
     {
       description: "Generate TypeScript type definitions for untyped or loosely-typed code. Infers interfaces, type aliases, and generics.",
       inputSchema: {
-        code: z.string().describe("The code to generate types for"),
+        code: z.string().max(100_000).trim().describe("The code to generate types for"),
       },
     },
     async ({ code }) => {
@@ -325,8 +325,8 @@ function createMcpServer(env: Env) {
     {
       description: "Fix a bug given the code and the error message or description. Returns corrected code only.",
       inputSchema: {
-        code: z.string().describe("The buggy code"),
-        error: z.string().describe("The error message, stack trace, or description of the bug"),
+        code: z.string().max(100_000).trim().describe("The buggy code"),
+        error: z.string().max(10_000).trim().describe("The error message, stack trace, or description of the bug"),
       },
     },
     async ({ code, error }) => {
@@ -346,7 +346,7 @@ function createMcpServer(env: Env) {
     {
       description: "Generate a concise, conventional commit message from a git diff.",
       inputSchema: {
-        diff: z.string().describe("The git diff to summarize"),
+        diff: z.string().max(50_000).trim().describe("The git diff to summarize"),
       },
     },
     async ({ diff }) => {
@@ -368,8 +368,8 @@ function createMcpServer(env: Env) {
     {
       description: "Generate Cloudflare Worker boilerplate from a description. Optionally specify bindings (KV, R2, D1, AI, Durable Objects, etc.).",
       inputSchema: {
-        description: z.string().describe("What the Worker should do"),
-        bindings: z.string().optional().describe("Comma-separated list of bindings needed (e.g. 'KV, R2, D1, AI')"),
+        description: z.string().max(10_000).trim().describe("What the Worker should do"),
+        bindings: z.string().max(500).trim().optional().describe("Comma-separated list of bindings needed (e.g. 'KV, R2, D1, AI')"),
       },
     },
     async ({ description, bindings }) => {
