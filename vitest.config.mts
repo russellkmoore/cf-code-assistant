@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     pool: cloudflarePool({
+      remoteBindings: false,
       wrangler: {
         configPath: "./wrangler.toml",
       },
