@@ -424,8 +424,16 @@ const authHandler: ExportedHandler<Env> = {
 
       if (request.method === "POST") {
         const formData = await request.formData();
-        const secret = formData.get("secret") as string;
-        const csrfToken = formData.get("csrf") as string;
+        const secret = formData.get("secret");
+        const csrfToken = formData.get("csrf");
+
+        if (typeof secret !== "string" || !secret.trim() || typeof csrfToken !== "string" || !csrfToken.trim()) {
+          return new Response("Invalid form data.", { status: 400 });
+        }
+
+        if (secret.length > 256 || csrfToken.length > 256) {
+          return new Response("Invalid form data.", { status: 400 });
+        }
 
         const stored = await env.OAUTH_KV.get(`csrf:${csrfToken}`);
         if (!stored) {
@@ -458,8 +466,17 @@ function timingSafeEqual(a: string, b: string): boolean {
   const encoder = new TextEncoder();
   const bufA = encoder.encode(a);
   const bufB = encoder.encode(b);
-  if (bufA.byteLength !== bufB.byteLength) return false;
-  return crypto.subtle.timingSafeEqual(bufA, bufB);
+  const maxLen = Math.max(bufA.byteLength, bufB.byteLength);
+  if (maxLen === 0) return true;
+  // Pad both buffers to equal length so comparison time is constant
+  const paddedA = new Uint8Array(maxLen);
+  const paddedB = new Uint8Array(maxLen);
+  paddedA.set(bufA);
+  paddedB.set(bufB);
+  // timingSafeEqual requires equal-length buffers — now guaranteed
+  const equal = crypto.subtle.timingSafeEqual(paddedA, paddedB);
+  // Even if byte comparison passes, lengths must also match for true equality
+  return equal && bufA.byteLength === bufB.byteLength;
 }
 
 function loginPage(csrfToken: string): string {
