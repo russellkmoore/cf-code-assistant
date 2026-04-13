@@ -2,6 +2,7 @@ import { OAuthProvider, type OAuthHelpers, type AuthRequest } from "@cloudflare/
 import { createMcpHandler } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { logToolInvocation, logToolError } from "./logger";
 
 // --- Model tier config ---
 
@@ -153,9 +154,23 @@ async function callModel(
   }
 }
 
-async function runAI(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 4096): Promise<string> {
+interface AIResult {
+  text: string;
+  model: string;
+  latency_ms: number;
+}
+
+async function runAIWithMetrics(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 4096): Promise<AIResult> {
   const model = await resolveModel(env, tier);
-  return callModel(env, model, userPrompt, maxTokens);
+  const start = Date.now();
+  const text = await callModel(env, model, userPrompt, maxTokens);
+  const latency_ms = Date.now() - start;
+  return { text, model: model as string, latency_ms };
+}
+
+async function runAI(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 4096): Promise<string> {
+  const result = await runAIWithMetrics(env, tier, userPrompt, maxTokens);
+  return result.text;
 }
 
 // --- Error helpers ---
@@ -201,16 +216,15 @@ function createMcpServer(env: Env) {
         if (context) parts.push(`Context:\n${context}`);
         parts.push(`Task:\n${prompt}`);
 
-        const code = await runAI(env, "standard", parts.join("\n\n"), 8192);
-        return { content: [{ type: "text", text: code }] };
+        const result = await runAIWithMetrics(env, "standard", parts.join("\n\n"), 8192);
+        logToolInvocation({ tool: "generateCode", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "AI_TIMEOUT") {
-          console.error("Tool error [generateCode]: AI_TIMEOUT");
-          return makeToolError("AI_TIMEOUT", "generateCode");
-        }
-        console.error("Tool error [generateCode]:", msg || "unknown");
-        return makeToolError("AI_ERROR", "generateCode");
+        const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const inputSize = new TextEncoder().encode(prompt + (context ?? "")).byteLength;
+        logToolError({ tool: "generateCode", error_type: errorType, input_size_bytes: inputSize });
+        return makeToolError(errorType as ErrorCode, "generateCode");
       }
     },
   );
@@ -236,16 +250,15 @@ function createMcpServer(env: Env) {
           .filter(Boolean)
           .join("\n\n");
 
-        const review = await runAI(env, "standard", prompt, 4096);
-        return { content: [{ type: "text", text: review }] };
+        const result = await runAIWithMetrics(env, "standard", prompt, 4096);
+        logToolInvocation({ tool: "reviewCode", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "AI_TIMEOUT") {
-          console.error("Tool error [reviewCode]: AI_TIMEOUT");
-          return makeToolError("AI_TIMEOUT", "reviewCode");
-        }
-        console.error("Tool error [reviewCode]:", msg || "unknown");
-        return makeToolError("AI_ERROR", "reviewCode");
+        const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const inputSize = new TextEncoder().encode(code).byteLength;
+        logToolError({ tool: "reviewCode", error_type: errorType, input_size_bytes: inputSize });
+        return makeToolError(errorType as ErrorCode, "reviewCode");
       }
     },
   );
@@ -267,16 +280,15 @@ function createMcpServer(env: Env) {
           `\`\`\`\n${code}\n\`\`\``,
         ].join("\n\n");
 
-        const transformed = await runAI(env, "standard", prompt, 8192);
-        return { content: [{ type: "text", text: transformed }] };
+        const result = await runAIWithMetrics(env, "standard", prompt, 8192);
+        logToolInvocation({ tool: "transformCode", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "AI_TIMEOUT") {
-          console.error("Tool error [transformCode]: AI_TIMEOUT");
-          return makeToolError("AI_TIMEOUT", "transformCode");
-        }
-        console.error("Tool error [transformCode]:", msg || "unknown");
-        return makeToolError("AI_ERROR", "transformCode");
+        const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const inputSize = new TextEncoder().encode(code).byteLength;
+        logToolError({ tool: "transformCode", error_type: errorType, input_size_bytes: inputSize });
+        return makeToolError(errorType as ErrorCode, "transformCode");
       }
     },
   );
@@ -299,16 +311,15 @@ function createMcpServer(env: Env) {
           `\`\`\`\n${code}\n\`\`\``,
         ].join("\n\n");
 
-        const tests = await runAI(env, "standard", prompt, 8192);
-        return { content: [{ type: "text", text: tests }] };
+        const result = await runAIWithMetrics(env, "standard", prompt, 8192);
+        logToolInvocation({ tool: "scaffoldTests", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "AI_TIMEOUT") {
-          console.error("Tool error [scaffoldTests]: AI_TIMEOUT");
-          return makeToolError("AI_TIMEOUT", "scaffoldTests");
-        }
-        console.error("Tool error [scaffoldTests]:", msg || "unknown");
-        return makeToolError("AI_ERROR", "scaffoldTests");
+        const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const inputSize = new TextEncoder().encode(code).byteLength;
+        logToolError({ tool: "scaffoldTests", error_type: errorType, input_size_bytes: inputSize });
+        return makeToolError(errorType as ErrorCode, "scaffoldTests");
       }
     },
   );
@@ -323,16 +334,15 @@ function createMcpServer(env: Env) {
     },
     async ({ instruction }) => {
       try {
-        const result = await runAI(env, "fast", instruction, 4096);
-        return { content: [{ type: "text", text: result }] };
+        const result = await runAIWithMetrics(env, "fast", instruction, 4096);
+        logToolInvocation({ tool: "quickTask", tier: "fast", model: result.model, latency_ms: result.latency_ms });
+        return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "AI_TIMEOUT") {
-          console.error("Tool error [quickTask]: AI_TIMEOUT");
-          return makeToolError("AI_TIMEOUT", "quickTask");
-        }
-        console.error("Tool error [quickTask]:", msg || "unknown");
-        return makeToolError("AI_ERROR", "quickTask");
+        const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const inputSize = new TextEncoder().encode(instruction).byteLength;
+        logToolError({ tool: "quickTask", error_type: errorType, input_size_bytes: inputSize });
+        return makeToolError(errorType as ErrorCode, "quickTask");
       }
     },
   );
@@ -359,16 +369,16 @@ function createMcpServer(env: Env) {
           `\`\`\`\n${code}\n\`\`\``,
         ].join("\n\n");
 
-        const explanation = await runAI(env, level === "detailed" ? "standard" : "fast", prompt, level === "detailed" ? 4096 : 2048);
-        return { content: [{ type: "text", text: explanation }] };
+        const tier: ModelTier = level === "detailed" ? "standard" : "fast";
+        const result = await runAIWithMetrics(env, tier, prompt, level === "detailed" ? 4096 : 2048);
+        logToolInvocation({ tool: "explainCode", tier, model: result.model, latency_ms: result.latency_ms });
+        return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "AI_TIMEOUT") {
-          console.error("Tool error [explainCode]: AI_TIMEOUT");
-          return makeToolError("AI_TIMEOUT", "explainCode");
-        }
-        console.error("Tool error [explainCode]:", msg || "unknown");
-        return makeToolError("AI_ERROR", "explainCode");
+        const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const inputSize = new TextEncoder().encode(code).byteLength;
+        logToolError({ tool: "explainCode", error_type: errorType, input_size_bytes: inputSize });
+        return makeToolError(errorType as ErrorCode, "explainCode");
       }
     },
   );
@@ -395,16 +405,15 @@ function createMcpServer(env: Env) {
           `\`\`\`\n${code}\n\`\`\``,
         ].join("\n\n");
 
-        const documented = await runAI(env, "standard", prompt, 8192);
-        return { content: [{ type: "text", text: documented }] };
+        const result = await runAIWithMetrics(env, "standard", prompt, 8192);
+        logToolInvocation({ tool: "generateDocs", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "AI_TIMEOUT") {
-          console.error("Tool error [generateDocs]: AI_TIMEOUT");
-          return makeToolError("AI_TIMEOUT", "generateDocs");
-        }
-        console.error("Tool error [generateDocs]:", msg || "unknown");
-        return makeToolError("AI_ERROR", "generateDocs");
+        const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const inputSize = new TextEncoder().encode(code).byteLength;
+        logToolError({ tool: "generateDocs", error_type: errorType, input_size_bytes: inputSize });
+        return makeToolError(errorType as ErrorCode, "generateDocs");
       }
     },
   );
@@ -424,16 +433,15 @@ function createMcpServer(env: Env) {
           `\`\`\`\n${code}\n\`\`\``,
         ].join("\n\n");
 
-        const typed = await runAI(env, "standard", prompt, 8192);
-        return { content: [{ type: "text", text: typed }] };
+        const result = await runAIWithMetrics(env, "standard", prompt, 8192);
+        logToolInvocation({ tool: "generateTypes", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "AI_TIMEOUT") {
-          console.error("Tool error [generateTypes]: AI_TIMEOUT");
-          return makeToolError("AI_TIMEOUT", "generateTypes");
-        }
-        console.error("Tool error [generateTypes]:", msg || "unknown");
-        return makeToolError("AI_ERROR", "generateTypes");
+        const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const inputSize = new TextEncoder().encode(code).byteLength;
+        logToolError({ tool: "generateTypes", error_type: errorType, input_size_bytes: inputSize });
+        return makeToolError(errorType as ErrorCode, "generateTypes");
       }
     },
   );
@@ -455,16 +463,15 @@ function createMcpServer(env: Env) {
           `\`\`\`\n${code}\n\`\`\``,
         ].join("\n\n");
 
-        const fixed = await runAI(env, "standard", prompt, 8192);
-        return { content: [{ type: "text", text: fixed }] };
+        const result = await runAIWithMetrics(env, "standard", prompt, 8192);
+        logToolInvocation({ tool: "fixBug", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "AI_TIMEOUT") {
-          console.error("Tool error [fixBug]: AI_TIMEOUT");
-          return makeToolError("AI_TIMEOUT", "fixBug");
-        }
-        console.error("Tool error [fixBug]:", msg || "unknown");
-        return makeToolError("AI_ERROR", "fixBug");
+        const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const inputSize = new TextEncoder().encode(code + error).byteLength;
+        logToolError({ tool: "fixBug", error_type: errorType, input_size_bytes: inputSize });
+        return makeToolError(errorType as ErrorCode, "fixBug");
       }
     },
   );
@@ -487,16 +494,15 @@ function createMcpServer(env: Env) {
           `\`\`\`diff\n${diff}\n\`\`\``,
         ].join("\n\n");
 
-        const message = await runAI(env, "fast", prompt, 1024);
-        return { content: [{ type: "text", text: message }] };
+        const result = await runAIWithMetrics(env, "fast", prompt, 1024);
+        logToolInvocation({ tool: "generateCommitMessage", tier: "fast", model: result.model, latency_ms: result.latency_ms });
+        return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "AI_TIMEOUT") {
-          console.error("Tool error [generateCommitMessage]: AI_TIMEOUT");
-          return makeToolError("AI_TIMEOUT", "generateCommitMessage");
-        }
-        console.error("Tool error [generateCommitMessage]:", msg || "unknown");
-        return makeToolError("AI_ERROR", "generateCommitMessage");
+        const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const inputSize = new TextEncoder().encode(diff).byteLength;
+        logToolError({ tool: "generateCommitMessage", error_type: errorType, input_size_bytes: inputSize });
+        return makeToolError(errorType as ErrorCode, "generateCommitMessage");
       }
     },
   );
@@ -519,16 +525,15 @@ function createMcpServer(env: Env) {
         if (bindings) parts.push(`Bindings to include in the Env interface: ${bindings}`);
         parts.push("Include the wrangler.toml snippet as a comment at the top. Return only the code.");
 
-        const boilerplate = await runAI(env, "standard", parts.join("\n\n"), 8192);
-        return { content: [{ type: "text", text: boilerplate }] };
+        const result = await runAIWithMetrics(env, "standard", parts.join("\n\n"), 8192);
+        logToolInvocation({ tool: "generateWorkerBoilerplate", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "AI_TIMEOUT") {
-          console.error("Tool error [generateWorkerBoilerplate]: AI_TIMEOUT");
-          return makeToolError("AI_TIMEOUT", "generateWorkerBoilerplate");
-        }
-        console.error("Tool error [generateWorkerBoilerplate]:", msg || "unknown");
-        return makeToolError("AI_ERROR", "generateWorkerBoilerplate");
+        const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const inputSize = new TextEncoder().encode(description).byteLength;
+        logToolError({ tool: "generateWorkerBoilerplate", error_type: errorType, input_size_bytes: inputSize });
+        return makeToolError(errorType as ErrorCode, "generateWorkerBoilerplate");
       }
     },
   );
@@ -718,8 +723,8 @@ function loginPage(csrfToken: string): string {
 }
 
 // --- Test exports (named exports for unit testing) ---
-export { resolveModel, isAllowedModel, timingSafeEqual, callModel, makeToolError, createMcpServer, authHandler, ALLOWED_MODELS, DEFAULT_MODELS };
-export type { ModelTier, ErrorCode };
+export { resolveModel, isAllowedModel, timingSafeEqual, callModel, makeToolError, createMcpServer, authHandler, runAIWithMetrics, ALLOWED_MODELS, DEFAULT_MODELS };
+export type { ModelTier, ErrorCode, AIResult };
 
 // --- Wire it all up ---
 
