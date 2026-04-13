@@ -1,19 +1,160 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
+import { createMcpServer } from "../index";
+import { createMockEnv } from "./helpers";
+
+function getToolSchema(env: Env, toolName: string) {
+  const server = createMcpServer(env);
+  const tools = (server as any)._registeredTools;
+  const tool = tools[toolName];
+  if (!tool) throw new Error(`Tool "${toolName}" not registered`);
+  return tool.inputSchema; // ZodObject from SDK's getZodSchemaObject()
+}
+
+function strOfLen(n: number): string {
+  return "x".repeat(n);
+}
 
 describe("SEC-02: Input size caps", () => {
-  it.todo("rejects code input over 100,000 characters");
-  it.todo("rejects context input over 50,000 characters");
-  it.todo("rejects prompt input over 20,000 characters");
-  it.todo("rejects diff input over 50,000 characters");
-  it.todo("rejects error input over 10,000 characters");
-  it.todo("rejects instruction input over 10,000 characters");
-  it.todo("rejects description input over 10,000 characters");
-  it.todo("rejects bindings input over 500 characters");
-});
+  let env: Env;
 
-describe("HARD-03: Auth form input validation", () => {
-  it.todo("rejects POST with missing secret field");
-  it.todo("rejects POST with missing csrf field");
-  it.todo("rejects POST with empty secret field");
-  it.todo("rejects POST with empty csrf field");
+  beforeEach(() => {
+    env = createMockEnv();
+  });
+
+  describe("generateCode", () => {
+    it("rejects prompt over 20,000 characters", () => {
+      const schema = getToolSchema(env, "generateCode");
+      expect(() => schema.parse({ prompt: strOfLen(20_001) })).toThrow();
+    });
+
+    it("accepts prompt at exactly 20,000 characters", () => {
+      const schema = getToolSchema(env, "generateCode");
+      expect(() => schema.parse({ prompt: strOfLen(20_000) })).not.toThrow();
+    });
+
+    it("rejects context over 50,000 characters", () => {
+      const schema = getToolSchema(env, "generateCode");
+      expect(() => schema.parse({ prompt: "valid", context: strOfLen(50_001) })).toThrow();
+    });
+
+    it("accepts context at exactly 50,000 characters", () => {
+      const schema = getToolSchema(env, "generateCode");
+      expect(() => schema.parse({ prompt: "valid", context: strOfLen(50_000) })).not.toThrow();
+    });
+  });
+
+  describe("reviewCode", () => {
+    it("rejects code over 100,000 characters", () => {
+      const schema = getToolSchema(env, "reviewCode");
+      expect(() => schema.parse({ code: strOfLen(100_001) })).toThrow();
+    });
+
+    it("accepts code at exactly 100,000 characters", () => {
+      const schema = getToolSchema(env, "reviewCode");
+      expect(() => schema.parse({ code: strOfLen(100_000) })).not.toThrow();
+    });
+
+    it("rejects criteria over 2,000 characters", () => {
+      const schema = getToolSchema(env, "reviewCode");
+      expect(() => schema.parse({ code: "valid", criteria: strOfLen(2_001) })).toThrow();
+    });
+  });
+
+  describe("transformCode", () => {
+    it("rejects code over 100,000 characters", () => {
+      const schema = getToolSchema(env, "transformCode");
+      expect(() => schema.parse({ code: strOfLen(100_001), instruction: "rename" })).toThrow();
+    });
+
+    it("rejects instruction over 10,000 characters", () => {
+      const schema = getToolSchema(env, "transformCode");
+      expect(() => schema.parse({ code: "valid", instruction: strOfLen(10_001) })).toThrow();
+    });
+  });
+
+  describe("scaffoldTests", () => {
+    it("rejects code over 100,000 characters", () => {
+      const schema = getToolSchema(env, "scaffoldTests");
+      expect(() => schema.parse({ code: strOfLen(100_001) })).toThrow();
+    });
+
+    it("accepts code at exactly 100,000 characters", () => {
+      const schema = getToolSchema(env, "scaffoldTests");
+      expect(() => schema.parse({ code: strOfLen(100_000) })).not.toThrow();
+    });
+  });
+
+  describe("quickTask", () => {
+    it("rejects instruction over 10,000 characters", () => {
+      const schema = getToolSchema(env, "quickTask");
+      expect(() => schema.parse({ instruction: strOfLen(10_001) })).toThrow();
+    });
+
+    it("accepts instruction at exactly 10,000 characters", () => {
+      const schema = getToolSchema(env, "quickTask");
+      expect(() => schema.parse({ instruction: strOfLen(10_000) })).not.toThrow();
+    });
+  });
+
+  describe("explainCode", () => {
+    it("rejects code over 100,000 characters", () => {
+      const schema = getToolSchema(env, "explainCode");
+      expect(() => schema.parse({ code: strOfLen(100_001) })).toThrow();
+    });
+  });
+
+  describe("generateDocs", () => {
+    it("rejects code over 100,000 characters", () => {
+      const schema = getToolSchema(env, "generateDocs");
+      expect(() => schema.parse({ code: strOfLen(100_001) })).toThrow();
+    });
+  });
+
+  describe("generateTypes", () => {
+    it("rejects code over 100,000 characters", () => {
+      const schema = getToolSchema(env, "generateTypes");
+      expect(() => schema.parse({ code: strOfLen(100_001) })).toThrow();
+    });
+  });
+
+  describe("fixBug", () => {
+    it("rejects code over 100,000 characters", () => {
+      const schema = getToolSchema(env, "fixBug");
+      expect(() => schema.parse({ code: strOfLen(100_001), error: "err" })).toThrow();
+    });
+
+    it("rejects error over 10,000 characters", () => {
+      const schema = getToolSchema(env, "fixBug");
+      expect(() => schema.parse({ code: "valid", error: strOfLen(10_001) })).toThrow();
+    });
+  });
+
+  describe("generateCommitMessage", () => {
+    it("rejects diff over 50,000 characters", () => {
+      const schema = getToolSchema(env, "generateCommitMessage");
+      expect(() => schema.parse({ diff: strOfLen(50_001) })).toThrow();
+    });
+
+    it("accepts diff at exactly 50,000 characters", () => {
+      const schema = getToolSchema(env, "generateCommitMessage");
+      expect(() => schema.parse({ diff: strOfLen(50_000) })).not.toThrow();
+    });
+  });
+
+  describe("generateWorkerBoilerplate", () => {
+    it("rejects description over 10,000 characters", () => {
+      const schema = getToolSchema(env, "generateWorkerBoilerplate");
+      expect(() => schema.parse({ description: strOfLen(10_001) })).toThrow();
+    });
+
+    it("accepts description at exactly 10,000 characters", () => {
+      const schema = getToolSchema(env, "generateWorkerBoilerplate");
+      expect(() => schema.parse({ description: strOfLen(10_000) })).not.toThrow();
+    });
+
+    it("rejects bindings over 500 characters", () => {
+      const schema = getToolSchema(env, "generateWorkerBoilerplate");
+      expect(() => schema.parse({ description: "valid", bindings: strOfLen(501) })).toThrow();
+    });
+  });
 });
