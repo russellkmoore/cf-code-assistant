@@ -25,15 +25,15 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 <!-- Current scope. Building toward these. -->
 
 - [ ] **HARD-01**: Graceful error handling on all AI calls — timeouts, malformed responses, rate limits
-- [ ] **HARD-02**: Rate limiting on auth PIN attempts to prevent brute force
-- [ ] **HARD-03**: Input validation and sanitization on all tool inputs and auth form data
+- ✓ **HARD-02**: Rate limiting on auth PIN attempts to prevent brute force — Validated in Phase 1: Security Hardening
+- ✓ **HARD-03**: Input validation and sanitization on all tool inputs and auth form data — Validated in Phase 1: Security Hardening
 - [ ] **HARD-04**: Structured logging for tool invocations, errors, and auth events
 - [ ] **TEST-01**: Unit tests for model resolution and self-healing fallback logic
 - [ ] **TEST-02**: Unit tests for timing-safe comparison and auth flow
 - [ ] **TEST-03**: Integration tests for tool handlers (mock AI responses)
 - [ ] **TEST-04**: Test coverage for error paths (AI failure, invalid model, expired CSRF)
-- [ ] **SEC-01**: Type safety cleanup — eliminate `as any` cast on dynamic model routing
-- [ ] **SEC-02**: Validate tool input sizes to prevent abuse (cap code/context length)
+- ✓ **SEC-01**: Type safety cleanup — eliminate `as any` cast on dynamic model routing — Validated in Phase 1: Security Hardening
+- ✓ **SEC-02**: Validate tool input sizes to prevent abuse (cap code/context length) — Validated in Phase 1: Security Hardening
 - [ ] **OBS-01**: Request/response logging with tool name, tier, model used, latency
 - [ ] **INFRA-02**: Git repository initialized with proper .gitignore and initial commit
 
@@ -52,7 +52,8 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - Brownfield project built in a single session, now being formalized
 - Codebase mapped in `.planning/codebase/` — 7 documents covering stack, architecture, conventions, testing, integrations, structure, and concerns
 - CONCERNS.md identified 9 areas of concern: type safety, error handling, auth gaps, logging, test coverage, dependency risks, fragile areas, scaling limits, config gaps
-- Zero test coverage currently — all critical paths untested
+- Phase 1 complete — security hardening shipped (type safety, input validation, rate limiting, error sanitization)
+- Test stubs in place (28 todos) — will be filled in Phase 3
 - Workers AI model ecosystem changes frequently — dynamic model config via KV is key to staying current
 
 ## Constraints
@@ -75,4 +76,4 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 | Reuse OAUTH_KV for model config | Avoid creating a second KV namespace for 2 keys | ✓ Good |
 
 ---
-*Last updated: 2026-04-12 after initial project formalization*
+*Last updated: 2026-04-12 after Phase 1: Security Hardening completion*
