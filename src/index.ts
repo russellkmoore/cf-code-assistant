@@ -109,6 +109,7 @@ interface Env {
   AI: Ai;
   OAUTH_KV: KVNamespace;
   MCP_SECRET: string;
+  AUTH_RATE_LIMITER: RateLimit;
 }
 
 // --- Workers AI helper ---
@@ -423,6 +424,12 @@ const authHandler: ExportedHandler<Env> = {
       }
 
       if (request.method === "POST") {
+        const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+        const { success } = await env.AUTH_RATE_LIMITER.limit({ key: ip });
+        if (!success) {
+          return new Response("Too many attempts. Try again later.", { status: 429 });
+        }
+
         const formData = await request.formData();
         const secret = formData.get("secret");
         const csrfToken = formData.get("csrf");
