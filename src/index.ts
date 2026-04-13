@@ -712,6 +712,10 @@ function loginPage(csrfToken: string): string {
 </html>`;
 }
 
+// --- Test exports (named exports for unit testing) ---
+export { resolveModel, isAllowedModel, timingSafeEqual, callModel, makeToolError, createMcpServer, authHandler, ALLOWED_MODELS, DEFAULT_MODELS };
+export type { ModelTier, ErrorCode };
+
 // --- Wire it all up ---
 
 export default new OAuthProvider({
