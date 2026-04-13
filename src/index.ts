@@ -158,6 +158,22 @@ async function runAI(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 
   return callModel(env, model, userPrompt, maxTokens);
 }
 
+// --- Error helpers ---
+
+type ErrorCode = "AI_TIMEOUT" | "AI_ERROR" | "INTERNAL_ERROR";
+
+function makeToolError(code: ErrorCode, toolName: string) {
+  const messages: Record<ErrorCode, string> = {
+    AI_TIMEOUT: `[ERROR: AI_TIMEOUT] The AI model did not respond within 30 seconds for tool ${toolName}. Please retry.`,
+    AI_ERROR: `[ERROR: AI_ERROR] The AI model returned an error for tool ${toolName}. The service may be temporarily degraded.`,
+    INTERNAL_ERROR: `[ERROR: INTERNAL_ERROR] An internal error occurred in tool ${toolName}. Please retry.`,
+  };
+  return {
+    content: [{ type: "text" as const, text: messages[code] }],
+    isError: true as const,
+  };
+}
+
 // --- MCP Server factory ---
 
 function createMcpServer(env: Env) {
@@ -572,6 +588,31 @@ function timingSafeEqual(a: string, b: string): boolean {
   const equal = crypto.subtle.timingSafeEqual(paddedA, paddedB);
   // Even if byte comparison passes, lengths must also match for true equality
   return equal && bufA.byteLength === bufB.byteLength;
+}
+
+function errorPage(heading: string, message: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CF Code Assistant — Error</title>
+  <style>
+    body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #0a0a0a; color: #e5e5e5; }
+    .card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 2rem; max-width: 400px; width: 100%; }
+    h1 { font-size: 1.25rem; margin: 0 0 0.5rem; color: #f97316; }
+    p { color: #999; font-size: 0.875rem; margin: 0 0 1.5rem; }
+    a { color: #f97316; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>${heading}</h1>
+    <p>${message}</p>
+    <p><a href="/authorize">Try again</a></p>
+  </div>
+</body>
+</html>`;
 }
 
 function loginPage(csrfToken: string): string {
