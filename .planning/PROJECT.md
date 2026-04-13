@@ -34,7 +34,7 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - ✓ **TEST-04**: Test coverage for error paths (AI failure, invalid model, expired CSRF) — Validated in Phase 3: Test Infrastructure
 - ✓ **SEC-01**: Type safety cleanup — eliminate `as any` cast on dynamic model routing — Validated in Phase 1: Security Hardening
 - ✓ **SEC-02**: Validate tool input sizes to prevent abuse (cap code/context length) — Validated in Phase 1: Security Hardening
-- [ ] **OBS-01**: Request/response logging with tool name, tier, model used, latency
+- ✓ **OBS-01**: Request/response logging with tool name, tier, model used, latency — Validated in Phase 4: Observability
 - [ ] **INFRA-02**: Git repository initialized with proper .gitignore and initial commit
 
 ### Out of Scope
@@ -55,6 +55,7 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - Phase 1 complete — security hardening shipped (type safety, input validation, rate limiting, error sanitization)
 - Phase 2 complete — error handling & reliability shipped (AI timeout, KV fallback, structured MCP errors, auth error pages)
 - Phase 3 complete — test infrastructure shipped (92 tests, 95.5% statement coverage, mock factories, model routing/auth/tool handler/input validation tests)
+- Phase 4 complete — observability shipped (structured JSON logging for tool invocations, tool errors, and auth events via src/logger.ts; 108 tests passing)
 - Workers AI model ecosystem changes frequently — dynamic model config via KV is key to staying current
 
 ## Constraints
@@ -77,4 +78,4 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 | Reuse OAUTH_KV for model config | Avoid creating a second KV namespace for 2 keys | ✓ Good |
 
 ---
-*Last updated: 2026-04-12 after Phase 2: Error Handling & Reliability completion*
+*Last updated: 2026-04-12 after Phase 4: Observability completion*
