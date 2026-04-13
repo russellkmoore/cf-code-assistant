@@ -78,11 +78,12 @@ Plans:
   3. Unit tests verify timing-safe comparison rejects wrong secrets and accepts correct ones
   4. Integration tests exercise the full auth flow: CSRF token creation, PIN submission, token exchange
   5. Tests for error paths cover AI timeout, invalid model name, expired CSRF token, and rate limit enforcement
-**Plans:** 2 plans
+**Plans:** 3 plans
 
 Plans:
-- [x] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
-- [ ] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
+- [ ] 03-01-PLAN.md — Test helpers, exports for testability, and model resolution unit tests (TEST-01, TEST-05)
+- [ ] 03-02-PLAN.md — Auth flow, timingSafeEqual, error sanitization, and rate limiting tests (TEST-02, TEST-04)
+- [ ] 03-03-PLAN.md — Tool handler integration tests and input validation tests (TEST-03, TEST-04)
 
 ### Phase 4: Observability
 **Goal**: Tool invocations, auth events, and errors are all logged with structured context visible in Cloudflare dashboard
@@ -109,5 +110,5 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4
 | 0. Repository Foundation | 0/TBD | Not started | - |
 | 1. Security Hardening | 0/4 | Planned | - |
 | 2. Error Handling & Reliability | 0/TBD | Not started | - |
-| 3. Test Infrastructure | 0/TBD | Not started | - |
+| 3. Test Infrastructure | 0/3 | Planned | - |
 | 4. Observability | 0/TBD | Not started | - |
