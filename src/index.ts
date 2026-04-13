@@ -656,6 +656,10 @@ function timingSafeEqual(a: string, b: string): boolean {
   return equal && bufA.byteLength === bufB.byteLength;
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 function errorPage(heading: string, message: string): string {
   return `<!DOCTYPE html>
 <html>
@@ -673,8 +677,8 @@ function errorPage(heading: string, message: string): string {
 </head>
 <body>
   <div class="card">
-    <h1>${heading}</h1>
-    <p>${message}</p>
+    <h1>${escapeHtml(heading)}</h1>
+    <p>${escapeHtml(message)}</p>
     <p><a href="/authorize">Try again</a></p>
   </div>
 </body>
@@ -682,6 +686,7 @@ function errorPage(heading: string, message: string): string {
 }
 
 function loginPage(csrfToken: string): string {
+  const safeToken = escapeHtml(csrfToken);
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -703,7 +708,7 @@ function loginPage(csrfToken: string): string {
     <h1>CF Code Assistant</h1>
     <p>Enter your secret to authorize this MCP client.</p>
     <form method="POST" action="/authorize">
-      <input type="hidden" name="csrf" value="${csrfToken}">
+      <input type="hidden" name="csrf" value="${safeToken}">
       <input type="password" name="secret" placeholder="MCP Secret" required autofocus>
       <button type="submit">Authorize</button>
     </form>
