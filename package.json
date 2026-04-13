@@ -7,7 +7,7 @@
     "deploy": "wrangler deploy",
     "types": "wrangler types",
     "test": "vitest run --reporter=verbose",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage --config vitest.coverage.config.mts"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^0.4.0",
