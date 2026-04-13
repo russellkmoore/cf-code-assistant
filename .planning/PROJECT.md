@@ -28,10 +28,10 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - ✓ **HARD-02**: Rate limiting on auth PIN attempts to prevent brute force — Validated in Phase 1: Security Hardening
 - ✓ **HARD-03**: Input validation and sanitization on all tool inputs and auth form data — Validated in Phase 1: Security Hardening
 - ✓ **HARD-04**: Structured error responses for all failure modes — Validated in Phase 2: Error Handling & Reliability
-- [ ] **TEST-01**: Unit tests for model resolution and self-healing fallback logic
-- [ ] **TEST-02**: Unit tests for timing-safe comparison and auth flow
-- [ ] **TEST-03**: Integration tests for tool handlers (mock AI responses)
-- [ ] **TEST-04**: Test coverage for error paths (AI failure, invalid model, expired CSRF)
+- ✓ **TEST-01**: Unit tests for model resolution and self-healing fallback logic — Validated in Phase 3: Test Infrastructure
+- ✓ **TEST-02**: Unit tests for timing-safe comparison and auth flow — Validated in Phase 3: Test Infrastructure
+- ✓ **TEST-03**: Integration tests for tool handlers (mock AI responses) — Validated in Phase 3: Test Infrastructure
+- ✓ **TEST-04**: Test coverage for error paths (AI failure, invalid model, expired CSRF) — Validated in Phase 3: Test Infrastructure
 - ✓ **SEC-01**: Type safety cleanup — eliminate `as any` cast on dynamic model routing — Validated in Phase 1: Security Hardening
 - ✓ **SEC-02**: Validate tool input sizes to prevent abuse (cap code/context length) — Validated in Phase 1: Security Hardening
 - [ ] **OBS-01**: Request/response logging with tool name, tier, model used, latency
@@ -54,7 +54,7 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - CONCERNS.md identified 9 areas of concern: type safety, error handling, auth gaps, logging, test coverage, dependency risks, fragile areas, scaling limits, config gaps
 - Phase 1 complete — security hardening shipped (type safety, input validation, rate limiting, error sanitization)
 - Phase 2 complete — error handling & reliability shipped (AI timeout, KV fallback, structured MCP errors, auth error pages)
-- Test stubs in place (28 todos) — will be filled in Phase 3
+- Phase 3 complete — test infrastructure shipped (92 tests, 95.5% statement coverage, mock factories, model routing/auth/tool handler/input validation tests)
 - Workers AI model ecosystem changes frequently — dynamic model config via KV is key to staying current
 
 ## Constraints
