@@ -47,7 +47,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 01-01-PLAN.md — Test infrastructure setup (vitest + Workers pool + test stubs)
 - [x] 01-02-PLAN.md — Type-safe model routing and allowlist validation (SEC-01, SEC-03)
 - [x] 01-03-PLAN.md — Input size caps and auth form validation (SEC-02, HARD-03)
-- [ ] 01-04-PLAN.md — Rate limiting and error sanitization (HARD-02, SEC-04)
+- [x] 01-04-PLAN.md — Rate limiting and error sanitization (HARD-02, SEC-04)
 
 ### Phase 2: Error Handling & Reliability
 **Goal**: All AI calls handle timeouts and failures gracefully, and every failure mode returns a structured error response
