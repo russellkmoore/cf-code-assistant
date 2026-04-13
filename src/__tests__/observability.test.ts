@@ -157,19 +157,20 @@ describe("OBS-02: Tool error logging", () => {
 // ---------------------------------------------------------------------------
 
 describe("OBS-03: Auth event logging", () => {
+  const makeBaseOAuthProvider = () => ({
+    parseAuthRequest: vi.fn(async () => ({
+      client_id: "test",
+      redirect_uri: "https://example.com/callback",
+      scope: ["read"],
+      state: "xyz",
+    })),
+    completeAuthorization: vi.fn(async () => ({
+      redirectTo: "https://example.com/callback?code=abc",
+    })),
+  });
+
   const makeBaseCtx = () =>
     ({
-      oauth: {
-        parseAuthRequest: vi.fn(async () => ({
-          client_id: "test",
-          redirect_uri: "https://example.com/callback",
-          scope: ["read"],
-          state: "xyz",
-        })),
-        completeAuthorization: vi.fn(async () => ({
-          redirectTo: "https://example.com/callback?code=abc",
-        })),
-      },
       waitUntil: vi.fn(),
       passThroughOnException: vi.fn(),
     }) as unknown as ExecutionContext;
@@ -201,7 +202,8 @@ describe("OBS-03: Auth event logging", () => {
       AI: {} as Ai,
       MCP_SECRET: "test-secret-pin",
       AUTH_RATE_LIMITER: createMockRateLimiter(true),
-    } as Env;
+      OAUTH_PROVIDER: makeBaseOAuthProvider(),
+    } as unknown as Env;
 
     const ctx = makeBaseCtx();
     const request = makeFormRequest("test-secret-pin", "valid-token", "1.2.3.4");
@@ -236,7 +238,8 @@ describe("OBS-03: Auth event logging", () => {
       AI: {} as Ai,
       MCP_SECRET: "test-secret-pin",
       AUTH_RATE_LIMITER: createMockRateLimiter(true),
-    } as Env;
+      OAUTH_PROVIDER: makeBaseOAuthProvider(),
+    } as unknown as Env;
 
     const ctx = makeBaseCtx();
     const request = makeFormRequest("wrong-pin", "valid-token", "5.6.7.8");
@@ -259,7 +262,8 @@ describe("OBS-03: Auth event logging", () => {
       AI: {} as Ai,
       MCP_SECRET: "test-secret-pin",
       AUTH_RATE_LIMITER: createMockRateLimiter(false),
-    } as Env;
+      OAUTH_PROVIDER: makeBaseOAuthProvider(),
+    } as unknown as Env;
 
     const ctx = makeBaseCtx();
     const request = makeFormRequest("any-pin", "any-csrf", "9.8.7.6");

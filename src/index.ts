@@ -562,7 +562,7 @@ function createMcpServer(env: Env) {
 const authHandler: ExportedHandler<Env> = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     const url = new URL(request.url);
-    const oauthHelpers = (ctx as unknown as { oauth: OAuthHelpers }).oauth;
+    const oauthHelpers = (env as unknown as { OAUTH_PROVIDER: OAuthHelpers }).OAUTH_PROVIDER;
 
     if (url.pathname === "/authorize") {
       if (request.method === "GET") {

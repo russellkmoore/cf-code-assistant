@@ -10,7 +10,7 @@ binding = "AI"
 # Then paste the id below
 [[kv_namespaces]]
 binding = "OAUTH_KV"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "81c76a033ce6491e8e89532625d50bc4"
 
 [observability]
 enabled = true

@@ -44,14 +44,7 @@ describe("TEST-02: Auth GET /authorize", () => {
       AI: {} as Ai,
       MCP_SECRET: "test-secret-pin",
       AUTH_RATE_LIMITER: createMockRateLimiter(true),
-    } as Env;
-
-    const request = new Request("https://worker.example.com/authorize", {
-      method: "GET",
-    });
-
-    const ctx = {
-      oauth: {
+      OAUTH_PROVIDER: {
         parseAuthRequest: vi.fn(async () => ({
           client_id: "test",
           redirect_uri: "https://example.com/callback",
@@ -60,6 +53,13 @@ describe("TEST-02: Auth GET /authorize", () => {
         })),
         completeAuthorization: vi.fn(),
       },
+    } as unknown as Env;
+
+    const request = new Request("https://worker.example.com/authorize", {
+      method: "GET",
+    });
+
+    const ctx = {
       waitUntil: vi.fn(),
       passThroughOnException: vi.fn(),
     } as unknown as ExecutionContext;
@@ -84,19 +84,19 @@ describe("TEST-02: Auth GET /authorize", () => {
       AI: {} as Ai,
       MCP_SECRET: "test-secret-pin",
       AUTH_RATE_LIMITER: createMockRateLimiter(true),
-    } as Env;
+      OAUTH_PROVIDER: {
+        parseAuthRequest: vi.fn(async () => {
+          throw new Error("bad request");
+        }),
+        completeAuthorization: vi.fn(),
+      },
+    } as unknown as Env;
 
     const request = new Request("https://worker.example.com/authorize", {
       method: "GET",
     });
 
     const ctx = {
-      oauth: {
-        parseAuthRequest: vi.fn(async () => {
-          throw new Error("bad request");
-        }),
-        completeAuthorization: vi.fn(),
-      },
       waitUntil: vi.fn(),
       passThroughOnException: vi.fn(),
     } as unknown as ExecutionContext;
@@ -113,14 +113,15 @@ describe("TEST-02: Auth GET /authorize", () => {
 // ---------------------------------------------------------------------------
 
 describe("TEST-02/TEST-04: Auth POST /authorize", () => {
+  const makeBaseOAuthProvider = () => ({
+    parseAuthRequest: vi.fn(),
+    completeAuthorization: vi.fn(async () => ({
+      redirectTo: "https://example.com/callback?code=abc",
+    })),
+  });
+
   const makeBaseCtx = () =>
     ({
-      oauth: {
-        parseAuthRequest: vi.fn(),
-        completeAuthorization: vi.fn(async () => ({
-          redirectTo: "https://example.com/callback?code=abc",
-        })),
-      },
       waitUntil: vi.fn(),
       passThroughOnException: vi.fn(),
     }) as unknown as ExecutionContext;
@@ -156,7 +157,8 @@ describe("TEST-02/TEST-04: Auth POST /authorize", () => {
       AI: {} as Ai,
       MCP_SECRET: "test-secret-pin",
       AUTH_RATE_LIMITER: createMockRateLimiter(true),
-    } as Env;
+      OAUTH_PROVIDER: makeBaseOAuthProvider(),
+    } as unknown as Env;
 
     const ctx = makeBaseCtx();
     const request = makeFormRequest("test-secret-pin", "valid-csrf-token", "1.2.3.4");
@@ -180,7 +182,8 @@ describe("TEST-02/TEST-04: Auth POST /authorize", () => {
       AI: {} as Ai,
       MCP_SECRET: "test-secret-pin",
       AUTH_RATE_LIMITER: createMockRateLimiter(true),
-    } as Env;
+      OAUTH_PROVIDER: makeBaseOAuthProvider(),
+    } as unknown as Env;
 
     const ctx = makeBaseCtx();
     const request = makeFormRequest("wrong-pin", "valid-csrf-token", "1.2.3.4");
@@ -200,7 +203,8 @@ describe("TEST-02/TEST-04: Auth POST /authorize", () => {
       AI: {} as Ai,
       MCP_SECRET: "test-secret-pin",
       AUTH_RATE_LIMITER: createMockRateLimiter(true),
-    } as Env;
+      OAUTH_PROVIDER: makeBaseOAuthProvider(),
+    } as unknown as Env;
 
     const ctx = makeBaseCtx();
     const request = makeFormRequest("test-secret-pin", "expired-csrf-token", "1.2.3.4");
@@ -217,7 +221,8 @@ describe("TEST-02/TEST-04: Auth POST /authorize", () => {
       AI: {} as Ai,
       MCP_SECRET: "test-secret-pin",
       AUTH_RATE_LIMITER: createMockRateLimiter(true),
-    } as Env;
+      OAUTH_PROVIDER: makeBaseOAuthProvider(),
+    } as unknown as Env;
 
     // Submit form with empty fields
     const formData = new FormData();
@@ -242,7 +247,8 @@ describe("TEST-02/TEST-04: Auth POST /authorize", () => {
       AI: {} as Ai,
       MCP_SECRET: "test-secret-pin",
       AUTH_RATE_LIMITER: createMockRateLimiter(true),
-    } as Env;
+      OAUTH_PROVIDER: makeBaseOAuthProvider(),
+    } as unknown as Env;
 
     const oversizedSecret = "x".repeat(257);
     const ctx = makeBaseCtx();
@@ -262,7 +268,8 @@ describe("TEST-02/TEST-04: Auth POST /authorize", () => {
       AI: {} as Ai,
       MCP_SECRET: "test-secret-pin",
       AUTH_RATE_LIMITER: createMockRateLimiter(true),
-    } as Env;
+      OAUTH_PROVIDER: makeBaseOAuthProvider(),
+    } as unknown as Env;
 
     const ctx = makeBaseCtx();
     const request = makeFormRequest("test-secret-pin", "bad-json-token", "1.2.3.4");
