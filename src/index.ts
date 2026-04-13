@@ -750,5 +750,5 @@ export default new OAuthProvider({
   authorizeEndpoint: "/authorize",
   tokenEndpoint: "/token",
   clientRegistrationEndpoint: "/register",
-  accessTokenTTL: 86400, // 24 hours
+  accessTokenTTL: 31536000, // 1 year
 });

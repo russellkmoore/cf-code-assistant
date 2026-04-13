@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "bash scripts/deploy.sh",
     "types": "wrangler types",
     "test": "vitest run --reporter=verbose",
     "test:coverage": "vitest run --coverage --config vitest.coverage.config.mts"

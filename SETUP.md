@@ -1,16 +1,20 @@
 # CF Code Assistant — Setup
 
-## 1. Create KV Namespace
+## Prerequisites
+
+- Node.js 18+
+- A Cloudflare account with Workers AI enabled
+- `wrangler` CLI (included as devDependency)
+
+## 1. Install Dependencies
 
 ```bash
-npx wrangler kv namespace create "OAUTH_KV"
+npm install
 ```
-
-Copy the output `id` into `wrangler.toml` under `[[kv_namespaces]]`.
 
 ## 2. Set the MCP Secret
 
-Choose a strong secret — this is your PIN for authorizing MCP clients:
+Choose a strong secret (16+ characters) — this is your PIN for authorizing MCP clients:
 
 ```bash
 npx wrangler secret put MCP_SECRET
@@ -19,14 +23,24 @@ npx wrangler secret put MCP_SECRET
 
 ## 3. Deploy
 
+The deploy script automatically creates the KV namespace if it doesn't exist:
+
 ```bash
-npx wrangler deploy
+npm run deploy
 ```
+
+This will:
+- Check if the `OAUTH_KV` namespace is configured in `wrangler.toml`
+- Create one if missing and update `wrangler.toml` with the ID
+- Warn if `MCP_SECRET` isn't set
+- Deploy the Worker
 
 Your MCP server will be live at:
 ```
 https://cf-code-assistant.<your-subdomain>.workers.dev/mcp
 ```
+
+Replace `<your-subdomain>` with your Cloudflare Workers subdomain.
 
 ## 4. Register in Claude Code
 
@@ -48,58 +62,11 @@ When Claude Code first connects, it will:
 2. Register as a client via `/register`
 3. Open your browser to `/authorize`
 4. You enter your `MCP_SECRET` to approve
-5. Claude Code receives an access token (valid 24h, auto-refreshes)
+5. Claude Code receives an access token (valid 1 year)
 
-After first auth, it's automatic — no re-entry needed until you revoke.
+After first auth, it's automatic — no re-entry needed until the token expires or you revoke.
 
-Replace `<your-subdomain>` with your Cloudflare Workers subdomain.
-
-## CLAUDE.md Routing Block
-
-Paste this into your project's `CLAUDE.md`:
-
-```markdown
-## Code Generation Routing — cf-code-assistant MCP
-
-When a task is pure code generation, transformation, review, or testing — delegate to the
-`cf-code-assistant` MCP server to save tokens. Claude handles orchestration; the Worker handles generation.
-
-### Routing Rules
-
-**ALWAYS delegate to cf-code-assistant when:**
-- Generating new code from a clear spec → `generateCode`
-- Reviewing code for bugs/style/security → `reviewCode`
-- Mechanical transforms (rename, reformat, add types, convert patterns) → `transformCode`
-- Generating test scaffolding → `scaffoldTests`
-- Simple self-contained tasks (regex, snippets, format conversions) → `quickTask`
-
-**NEVER delegate — Claude handles directly:**
-- Anything involving /gsd commands or workflow orchestration
-- Research tasks (web search, Context7 lookups, Cloudflare docs)
-- Architecture decisions or multi-file reasoning
-- Tasks requiring reading/exploring the codebase first
-- Anything needing MCP tool output as input (Claude fetches first, then may pass as `context`)
-
-### Context-First Pattern
-Before calling `generateCode`, Claude MUST gather relevant context:
-1. Use Context7, Cloudflare MCP, or file reads to collect API docs, existing code, or patterns
-2. Pass gathered context via the `context` parameter
-3. Include `language` and `style` when applicable
-
-Example flow:
-1. User asks: "Add a KV caching layer to the auth middleware"
-2. Claude reads the auth middleware file
-3. Claude fetches KV API docs via Context7 or Cloudflare MCP
-4. Claude calls `generateCode(prompt="Add KV caching to this auth middleware", context="<middleware code + KV docs>", language="typescript")`
-
-### Model Info
-- Backend: `@cf/qwen/qwen3-30b-a3b-fp8` on Workers AI
-- 32k context window, MoE (3B active params)
-- Cost: $0.051/M input, $0.34/M output tokens
-- Best for: mechanical code tasks where Claude's reasoning isn't needed
-```
-
-## Test Locally
+## 5. Test Locally
 
 ```bash
 npm run dev
@@ -107,3 +74,33 @@ npm run dev
 npx @modelcontextprotocol/inspector
 # Enter http://localhost:8787/mcp in the inspector
 ```
+
+Note: Local dev still hits Cloudflare Workers AI remotely, so AI calls will incur charges.
+
+## 6. Configure Claude Code for Routing
+
+See [examples/CLAUDE.md](examples/CLAUDE.md) for a ready-to-use routing block you can paste into your project's `CLAUDE.md`. This teaches Claude when to delegate tasks to cf-code-assistant vs. handle them directly.
+
+For a more structured approach, see [examples/skills/cf-delegate.md](examples/skills/cf-delegate.md) — a Claude Code skill that automates the context-gathering and delegation workflow.
+
+## Changing Models
+
+The default model is `@cf/qwen/qwen3-30b-a3b-fp8`. To change it at runtime without redeploying:
+
+```bash
+# Set a different model for the "fast" tier
+npx wrangler kv key put "config:model:fast" "@cf/meta/llama-4-scout-17b-16e-instruct" --namespace-id <your-kv-id>
+
+# Set a different model for the "standard" tier
+npx wrangler kv key put "config:model:standard" "@cf/meta/llama-4-scout-17b-16e-instruct" --namespace-id <your-kv-id>
+```
+
+Invalid model names auto-revert to the default on next request (self-healing).
+
+## Troubleshooting
+
+**"Too many attempts"** — Auth rate limiter triggered (5 attempts per minute). Wait 60 seconds.
+
+**Tools return generic errors** — Check `wrangler tail` for structured log output. Every tool call and auth event produces JSON logs.
+
+**KV namespace not found** — Run `npm run deploy` again; the deploy script will detect and fix missing KV configuration.
