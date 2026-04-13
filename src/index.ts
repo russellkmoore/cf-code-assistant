@@ -204,8 +204,13 @@ function createMcpServer(env: Env) {
         const code = await runAI(env, "standard", parts.join("\n\n"), 8192);
         return { content: [{ type: "text", text: code }] };
       } catch (err) {
-        console.error("Tool error [generateCode]:", err instanceof Error ? err.message : "unknown");
-        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "AI_TIMEOUT") {
+          console.error("Tool error [generateCode]: AI_TIMEOUT");
+          return makeToolError("AI_TIMEOUT", "generateCode");
+        }
+        console.error("Tool error [generateCode]:", msg || "unknown");
+        return makeToolError("AI_ERROR", "generateCode");
       }
     },
   );
@@ -234,8 +239,13 @@ function createMcpServer(env: Env) {
         const review = await runAI(env, "standard", prompt, 4096);
         return { content: [{ type: "text", text: review }] };
       } catch (err) {
-        console.error("Tool error [reviewCode]:", err instanceof Error ? err.message : "unknown");
-        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "AI_TIMEOUT") {
+          console.error("Tool error [reviewCode]: AI_TIMEOUT");
+          return makeToolError("AI_TIMEOUT", "reviewCode");
+        }
+        console.error("Tool error [reviewCode]:", msg || "unknown");
+        return makeToolError("AI_ERROR", "reviewCode");
       }
     },
   );
@@ -260,8 +270,13 @@ function createMcpServer(env: Env) {
         const transformed = await runAI(env, "standard", prompt, 8192);
         return { content: [{ type: "text", text: transformed }] };
       } catch (err) {
-        console.error("Tool error [transformCode]:", err instanceof Error ? err.message : "unknown");
-        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "AI_TIMEOUT") {
+          console.error("Tool error [transformCode]: AI_TIMEOUT");
+          return makeToolError("AI_TIMEOUT", "transformCode");
+        }
+        console.error("Tool error [transformCode]:", msg || "unknown");
+        return makeToolError("AI_ERROR", "transformCode");
       }
     },
   );
@@ -287,8 +302,13 @@ function createMcpServer(env: Env) {
         const tests = await runAI(env, "standard", prompt, 8192);
         return { content: [{ type: "text", text: tests }] };
       } catch (err) {
-        console.error("Tool error [scaffoldTests]:", err instanceof Error ? err.message : "unknown");
-        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "AI_TIMEOUT") {
+          console.error("Tool error [scaffoldTests]: AI_TIMEOUT");
+          return makeToolError("AI_TIMEOUT", "scaffoldTests");
+        }
+        console.error("Tool error [scaffoldTests]:", msg || "unknown");
+        return makeToolError("AI_ERROR", "scaffoldTests");
       }
     },
   );
@@ -306,8 +326,13 @@ function createMcpServer(env: Env) {
         const result = await runAI(env, "fast", instruction, 4096);
         return { content: [{ type: "text", text: result }] };
       } catch (err) {
-        console.error("Tool error [quickTask]:", err instanceof Error ? err.message : "unknown");
-        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "AI_TIMEOUT") {
+          console.error("Tool error [quickTask]: AI_TIMEOUT");
+          return makeToolError("AI_TIMEOUT", "quickTask");
+        }
+        console.error("Tool error [quickTask]:", msg || "unknown");
+        return makeToolError("AI_ERROR", "quickTask");
       }
     },
   );
@@ -337,8 +362,13 @@ function createMcpServer(env: Env) {
         const explanation = await runAI(env, level === "detailed" ? "standard" : "fast", prompt, level === "detailed" ? 4096 : 2048);
         return { content: [{ type: "text", text: explanation }] };
       } catch (err) {
-        console.error("Tool error [explainCode]:", err instanceof Error ? err.message : "unknown");
-        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "AI_TIMEOUT") {
+          console.error("Tool error [explainCode]: AI_TIMEOUT");
+          return makeToolError("AI_TIMEOUT", "explainCode");
+        }
+        console.error("Tool error [explainCode]:", msg || "unknown");
+        return makeToolError("AI_ERROR", "explainCode");
       }
     },
   );
@@ -368,8 +398,13 @@ function createMcpServer(env: Env) {
         const documented = await runAI(env, "standard", prompt, 8192);
         return { content: [{ type: "text", text: documented }] };
       } catch (err) {
-        console.error("Tool error [generateDocs]:", err instanceof Error ? err.message : "unknown");
-        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "AI_TIMEOUT") {
+          console.error("Tool error [generateDocs]: AI_TIMEOUT");
+          return makeToolError("AI_TIMEOUT", "generateDocs");
+        }
+        console.error("Tool error [generateDocs]:", msg || "unknown");
+        return makeToolError("AI_ERROR", "generateDocs");
       }
     },
   );
@@ -392,8 +427,13 @@ function createMcpServer(env: Env) {
         const typed = await runAI(env, "standard", prompt, 8192);
         return { content: [{ type: "text", text: typed }] };
       } catch (err) {
-        console.error("Tool error [generateTypes]:", err instanceof Error ? err.message : "unknown");
-        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "AI_TIMEOUT") {
+          console.error("Tool error [generateTypes]: AI_TIMEOUT");
+          return makeToolError("AI_TIMEOUT", "generateTypes");
+        }
+        console.error("Tool error [generateTypes]:", msg || "unknown");
+        return makeToolError("AI_ERROR", "generateTypes");
       }
     },
   );
@@ -418,8 +458,13 @@ function createMcpServer(env: Env) {
         const fixed = await runAI(env, "standard", prompt, 8192);
         return { content: [{ type: "text", text: fixed }] };
       } catch (err) {
-        console.error("Tool error [fixBug]:", err instanceof Error ? err.message : "unknown");
-        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "AI_TIMEOUT") {
+          console.error("Tool error [fixBug]: AI_TIMEOUT");
+          return makeToolError("AI_TIMEOUT", "fixBug");
+        }
+        console.error("Tool error [fixBug]:", msg || "unknown");
+        return makeToolError("AI_ERROR", "fixBug");
       }
     },
   );
@@ -445,8 +490,13 @@ function createMcpServer(env: Env) {
         const message = await runAI(env, "fast", prompt, 1024);
         return { content: [{ type: "text", text: message }] };
       } catch (err) {
-        console.error("Tool error [generateCommitMessage]:", err instanceof Error ? err.message : "unknown");
-        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "AI_TIMEOUT") {
+          console.error("Tool error [generateCommitMessage]: AI_TIMEOUT");
+          return makeToolError("AI_TIMEOUT", "generateCommitMessage");
+        }
+        console.error("Tool error [generateCommitMessage]:", msg || "unknown");
+        return makeToolError("AI_ERROR", "generateCommitMessage");
       }
     },
   );
@@ -472,8 +522,13 @@ function createMcpServer(env: Env) {
         const boilerplate = await runAI(env, "standard", parts.join("\n\n"), 8192);
         return { content: [{ type: "text", text: boilerplate }] };
       } catch (err) {
-        console.error("Tool error [generateWorkerBoilerplate]:", err instanceof Error ? err.message : "unknown");
-        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "AI_TIMEOUT") {
+          console.error("Tool error [generateWorkerBoilerplate]: AI_TIMEOUT");
+          return makeToolError("AI_TIMEOUT", "generateWorkerBoilerplate");
+        }
+        console.error("Tool error [generateWorkerBoilerplate]:", msg || "unknown");
+        return makeToolError("AI_ERROR", "generateWorkerBoilerplate");
       }
     },
   );
