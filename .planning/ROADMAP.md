@@ -82,8 +82,8 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md — Test helpers, exports for testability, and model resolution unit tests (TEST-01, TEST-05)
-- [ ] 03-02-PLAN.md — Auth flow, timingSafeEqual, error sanitization, and rate limiting tests (TEST-02, TEST-04)
-- [ ] 03-03-PLAN.md — Tool handler integration tests and input validation tests (TEST-03, TEST-04)
+- [x] 03-02-PLAN.md — Auth flow, timingSafeEqual, error sanitization, and rate limiting tests (TEST-02, TEST-04)
+- [x] 03-03-PLAN.md — Tool handler integration tests and input validation tests (TEST-03, TEST-04)
 
 ### Phase 4: Observability
 **Goal**: Tool invocations, auth events, and errors are all logged with structured context visible in Cloudflare dashboard
@@ -97,8 +97,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
-- [ ] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
+- [ ] 04-01-PLAN.md — Structured logging module and tool handler wiring (OBS-01, OBS-02)
+- [ ] 04-02-PLAN.md — Auth event logging and observability integration tests (OBS-03)
 
 ## Progress
 
@@ -111,4 +111,4 @@ Phases execute in numeric order: 0 → 1 → 2 → 3 → 4
 | 1. Security Hardening | 0/4 | Planned | - |
 | 2. Error Handling & Reliability | 0/TBD | Not started | - |
 | 3. Test Infrastructure | 0/3 | Planned | - |
-| 4. Observability | 0/TBD | Not started | - |
+| 4. Observability | 0/2 | Planned | - |
