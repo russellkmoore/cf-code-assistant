@@ -42,9 +42,49 @@ https://cf-code-assistant.<your-subdomain>.workers.dev/mcp
 
 Replace `<your-subdomain>` with your Cloudflare Workers subdomain.
 
-## 4. Register in Claude Code
+## 4. Register the Server
 
-Add to `~/.claude/settings.json` under `mcpServers`:
+The MCP endpoint is:
+```
+https://cf-code-assistant.<your-subdomain>.workers.dev/mcp
+```
+
+**Important:** Always include the `/mcp` path suffix. Omitting it will cause the client to send MCP requests to the wrong endpoint.
+
+Pick the method that matches how you use Claude:
+
+### Option A: Claude Code CLI
+
+Add with user scope so the server is available across all projects:
+
+```bash
+claude mcp add --scope user cf-code-assistant \
+  --url https://cf-code-assistant.<your-subdomain>.workers.dev/mcp
+```
+
+Verify registration:
+
+```bash
+claude mcp list
+```
+
+To make it available in the current session, reload the window:
+
+- **VS Code extension:** `Cmd+Shift+P` → **Developer: Reload Window**
+- **Terminal CLI:** exit and start a new session
+
+### Option B: Claude Desktop App
+
+1. Open **Settings → Connectors** (or **Code → Add custom connector** depending on your version)
+2. Click **Add custom connector**
+3. Fill in:
+   - **Name:** `cf-code-assistant`
+   - **URL:** `https://cf-code-assistant.<your-subdomain>.workers.dev/mcp`
+4. Click **Add**, then **Connect**
+
+### Option C: Manual settings.json (advanced)
+
+Edit `~/.claude/settings.json` and add:
 
 ```json
 {
@@ -57,12 +97,17 @@ Add to `~/.claude/settings.json` under `mcpServers`:
 }
 ```
 
-When Claude Code first connects, it will:
-1. Discover the OAuth metadata at `/.well-known/oauth-authorization-server`
-2. Register as a client via `/register`
-3. Open your browser to `/authorize`
+Reload your Claude Code session for changes to take effect.
+
+### First Connection (OAuth Flow)
+
+Regardless of which option you used, the first connection triggers the OAuth flow:
+
+1. The client discovers OAuth metadata at `/.well-known/oauth-authorization-server`
+2. Registers as a client via `/register`
+3. Opens your browser to `/authorize`
 4. You enter your `MCP_SECRET` to approve
-5. Claude Code receives an access token (valid 1 year)
+5. The client receives an access token (valid 1 year)
 
 After first auth, it's automatic — no re-entry needed until the token expires or you revoke.
 
