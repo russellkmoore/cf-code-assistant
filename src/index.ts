@@ -2,7 +2,7 @@ import { OAuthProvider, type OAuthHelpers, type AuthRequest } from "@cloudflare/
 import { createMcpHandler } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { logToolInvocation, logToolError } from "./logger";
+import { logToolInvocation, logToolError, logAuthEvent } from "./logger";
 
 // --- Model tier config ---
 
@@ -575,7 +575,7 @@ const authHandler: ExportedHandler<Env> = {
             headers: { "Content-Type": "text/html" },
           });
         } catch (err) {
-          console.error("[authHandler GET] Failed to initialize auth:", err instanceof Error ? err.message : "unknown");
+          logAuthEvent({ event: "failure", ip: request.headers.get("CF-Connecting-IP") ?? "unknown", detail: "auth_init_failed" });
           return new Response(
             errorPage("Authorization Error", "Failed to initialize the authorization flow. Please try again."),
             {
@@ -590,28 +590,35 @@ const authHandler: ExportedHandler<Env> = {
         const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
         const { success } = await env.AUTH_RATE_LIMITER.limit({ key: ip });
         if (!success) {
+          logAuthEvent({ event: "rate_limit", ip });
           return new Response("Too many attempts. Try again later.", { status: 429 });
         }
+
+        logAuthEvent({ event: "attempt", ip });
 
         const formData = await request.formData();
         const secret = formData.get("secret");
         const csrfToken = formData.get("csrf");
 
         if (typeof secret !== "string" || !secret.trim() || typeof csrfToken !== "string" || !csrfToken.trim()) {
+          logAuthEvent({ event: "failure", ip, detail: "invalid_form_data" });
           return new Response("Invalid form data.", { status: 400 });
         }
 
         if (secret.length > 256 || csrfToken.length > 256) {
+          logAuthEvent({ event: "failure", ip, detail: "input_too_long" });
           return new Response("Invalid form data.", { status: 400 });
         }
 
         const stored = await env.OAUTH_KV.get(`csrf:${csrfToken}`);
         if (!stored) {
+          logAuthEvent({ event: "failure", ip, detail: "csrf_expired" });
           return new Response("Session expired. Please try again.", { status: 400 });
         }
         await env.OAUTH_KV.delete(`csrf:${csrfToken}`);
 
         if (!secret || !timingSafeEqual(secret, env.MCP_SECRET)) {
+          logAuthEvent({ event: "failure", ip, detail: "wrong_pin" });
           return new Response("Invalid secret.", { status: 403 });
         }
 
@@ -619,6 +626,7 @@ const authHandler: ExportedHandler<Env> = {
         try {
           authRequest = JSON.parse(stored) as AuthRequest;
         } catch {
+          logAuthEvent({ event: "failure", ip, detail: "invalid_csrf_payload" });
           return new Response("Authorization failed.", { status: 400 });
         }
 
@@ -633,9 +641,11 @@ const authHandler: ExportedHandler<Env> = {
           });
           redirectTo = result.redirectTo;
         } catch {
+          logAuthEvent({ event: "failure", ip, detail: "authorization_completion_failed" });
           return new Response("Authorization failed.", { status: 400 });
         }
 
+        logAuthEvent({ event: "success", ip });
         return Response.redirect(redirectTo, 302);
       }
     }
