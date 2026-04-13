@@ -32,8 +32,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
-- [ ] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
+- [x] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
+- [x] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
 
 ### Phase 1: Security Hardening
 **Goal**: The server rejects malformed inputs, validates model names, protects auth from brute force, and uses type-safe model routing
@@ -65,8 +65,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
-- [ ] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
+- [x] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
+- [x] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
 
 ### Phase 3: Test Infrastructure
 **Goal**: Every critical path — model resolution, auth flow, tool handlers, and error paths — is covered by automated tests that mock AI calls
@@ -81,7 +81,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
+- [x] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
 - [ ] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
 
 ### Phase 4: Observability
