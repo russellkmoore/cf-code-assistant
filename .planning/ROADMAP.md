@@ -29,7 +29,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `.gitignore` excludes node_modules, .dev.vars, wrangler secrets, and build artifacts
   3. SETUP.md reflects the current deployment steps including hardening changes planned in subsequent phases
   4. A developer can clone the repo and follow SETUP.md to deploy without ambiguity
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
+- [ ] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
 
 ### Phase 1: Security Hardening
 **Goal**: The server rejects malformed inputs, validates model names, protects auth from brute force, and uses type-safe model routing
@@ -58,7 +62,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Auth form parsing failures (malformed POST body, invalid JSON in KV) return 400 with a user-readable message instead of an unhandled 500
   3. `oauthHelpers.parseAuthRequest()` and `completeAuthorization()` failures are caught and return appropriate HTTP error responses
   4. The KV-based model fallback handles secondary KV failures without entering an infinite retry loop
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
+- [ ] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
 
 ### Phase 3: Test Infrastructure
 **Goal**: Every critical path — model resolution, auth flow, tool handlers, and error paths — is covered by automated tests that mock AI calls
@@ -70,7 +78,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Unit tests verify timing-safe comparison rejects wrong secrets and accepts correct ones
   4. Integration tests exercise the full auth flow: CSRF token creation, PIN submission, token exchange
   5. Tests for error paths cover AI timeout, invalid model name, expired CSRF token, and rate limit enforcement
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
+- [ ] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
 
 ### Phase 4: Observability
 **Goal**: Tool invocations, auth events, and errors are all logged with structured context visible in Cloudflare dashboard
@@ -81,7 +93,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Every error produces a log entry containing the tool name, input size, and error type — no stack traces or secrets in log output
   3. Auth events (attempt, success, failure, rate limit hit) each produce a distinct structured log entry
   4. Cloudflare Workers tail logs show all three log categories without additional configuration
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
+- [ ] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
 
 ## Progress
 
