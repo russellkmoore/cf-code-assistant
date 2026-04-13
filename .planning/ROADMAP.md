@@ -81,7 +81,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Test helpers, exports for testability, and model resolution unit tests (TEST-01, TEST-05)
+- [x] 03-01-PLAN.md — Test helpers, exports for testability, and model resolution unit tests (TEST-01, TEST-05)
 - [ ] 03-02-PLAN.md — Auth flow, timingSafeEqual, error sanitization, and rate limiting tests (TEST-02, TEST-04)
 - [ ] 03-03-PLAN.md — Tool handler integration tests and input validation tests (TEST-03, TEST-04)
 
