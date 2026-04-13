@@ -97,7 +97,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Structured logging module and tool handler wiring (OBS-01, OBS-02)
+- [x] 04-01-PLAN.md — Structured logging module and tool handler wiring (OBS-01, OBS-02)
 - [ ] 04-02-PLAN.md — Auth event logging and observability integration tests (OBS-03)
 
 ## Progress
