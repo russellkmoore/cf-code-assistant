@@ -157,14 +157,19 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ prompt, context, language, style }) => {
-      const parts: string[] = [];
-      if (language) parts.push(`Language: ${language}`);
-      if (style) parts.push(`Style: ${style}`);
-      if (context) parts.push(`Context:\n${context}`);
-      parts.push(`Task:\n${prompt}`);
+      try {
+        const parts: string[] = [];
+        if (language) parts.push(`Language: ${language}`);
+        if (style) parts.push(`Style: ${style}`);
+        if (context) parts.push(`Context:\n${context}`);
+        parts.push(`Task:\n${prompt}`);
 
-      const code = await runAI(env, "standard", parts.join("\n\n"), 8192);
-      return { content: [{ type: "text", text: code }] };
+        const code = await runAI(env, "standard", parts.join("\n\n"), 8192);
+        return { content: [{ type: "text", text: code }] };
+      } catch (err) {
+        console.error("Tool error [generateCode]:", err instanceof Error ? err.message : "unknown");
+        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+      }
     },
   );
 
@@ -178,18 +183,23 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ code, criteria }) => {
-      const prompt = [
-        "Review the following code and return structured findings as a markdown list.",
-        "Categories: Bugs, Style, Performance, Security, Suggestions.",
-        "Only include categories where you find issues.",
-        criteria ? `Focus on: ${criteria}` : "",
-        `\`\`\`\n${code}\n\`\`\``,
-      ]
-        .filter(Boolean)
-        .join("\n\n");
+      try {
+        const prompt = [
+          "Review the following code and return structured findings as a markdown list.",
+          "Categories: Bugs, Style, Performance, Security, Suggestions.",
+          "Only include categories where you find issues.",
+          criteria ? `Focus on: ${criteria}` : "",
+          `\`\`\`\n${code}\n\`\`\``,
+        ]
+          .filter(Boolean)
+          .join("\n\n");
 
-      const review = await runAI(env, "standard", prompt, 4096);
-      return { content: [{ type: "text", text: review }] };
+        const review = await runAI(env, "standard", prompt, 4096);
+        return { content: [{ type: "text", text: review }] };
+      } catch (err) {
+        console.error("Tool error [reviewCode]:", err instanceof Error ? err.message : "unknown");
+        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+      }
     },
   );
 
@@ -203,14 +213,19 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ code, instruction }) => {
-      const prompt = [
-        `Apply the following transformation to this code. Return only the transformed code.`,
-        `Transformation: ${instruction}`,
-        `\`\`\`\n${code}\n\`\`\``,
-      ].join("\n\n");
+      try {
+        const prompt = [
+          `Apply the following transformation to this code. Return only the transformed code.`,
+          `Transformation: ${instruction}`,
+          `\`\`\`\n${code}\n\`\`\``,
+        ].join("\n\n");
 
-      const transformed = await runAI(env, "standard", prompt, 8192);
-      return { content: [{ type: "text", text: transformed }] };
+        const transformed = await runAI(env, "standard", prompt, 8192);
+        return { content: [{ type: "text", text: transformed }] };
+      } catch (err) {
+        console.error("Tool error [transformCode]:", err instanceof Error ? err.message : "unknown");
+        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+      }
     },
   );
 
@@ -224,15 +239,20 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ code, framework }) => {
-      const fw = framework ?? "vitest";
-      const prompt = [
-        `Generate comprehensive test scaffolding using ${fw} for the following code.`,
-        `Include happy path, edge cases, and error cases. Return only test code.`,
-        `\`\`\`\n${code}\n\`\`\``,
-      ].join("\n\n");
+      try {
+        const fw = framework ?? "vitest";
+        const prompt = [
+          `Generate comprehensive test scaffolding using ${fw} for the following code.`,
+          `Include happy path, edge cases, and error cases. Return only test code.`,
+          `\`\`\`\n${code}\n\`\`\``,
+        ].join("\n\n");
 
-      const tests = await runAI(env, "standard", prompt, 8192);
-      return { content: [{ type: "text", text: tests }] };
+        const tests = await runAI(env, "standard", prompt, 8192);
+        return { content: [{ type: "text", text: tests }] };
+      } catch (err) {
+        console.error("Tool error [scaffoldTests]:", err instanceof Error ? err.message : "unknown");
+        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+      }
     },
   );
 
@@ -245,8 +265,13 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ instruction }) => {
-      const result = await runAI(env, "fast", instruction, 4096);
-      return { content: [{ type: "text", text: result }] };
+      try {
+        const result = await runAI(env, "fast", instruction, 4096);
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        console.error("Tool error [quickTask]:", err instanceof Error ? err.message : "unknown");
+        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+      }
     },
   );
 
@@ -260,19 +285,24 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ code, depth }) => {
-      const level = depth ?? "brief";
-      const depthInstructions: Record<string, string> = {
-        brief: "Explain in 1-2 concise sentences what this code does.",
-        detailed: "Provide a detailed walkthrough of this code: purpose, control flow, key decisions, and any notable patterns.",
-        eli5: "Explain this code like I'm 5 years old, using a simple real-world analogy. No jargon.",
-      };
-      const prompt = [
-        depthInstructions[level],
-        `\`\`\`\n${code}\n\`\`\``,
-      ].join("\n\n");
+      try {
+        const level = depth ?? "brief";
+        const depthInstructions: Record<string, string> = {
+          brief: "Explain in 1-2 concise sentences what this code does.",
+          detailed: "Provide a detailed walkthrough of this code: purpose, control flow, key decisions, and any notable patterns.",
+          eli5: "Explain this code like I'm 5 years old, using a simple real-world analogy. No jargon.",
+        };
+        const prompt = [
+          depthInstructions[level],
+          `\`\`\`\n${code}\n\`\`\``,
+        ].join("\n\n");
 
-      const explanation = await runAI(env, level === "detailed" ? "standard" : "fast", prompt, level === "detailed" ? 4096 : 2048);
-      return { content: [{ type: "text", text: explanation }] };
+        const explanation = await runAI(env, level === "detailed" ? "standard" : "fast", prompt, level === "detailed" ? 4096 : 2048);
+        return { content: [{ type: "text", text: explanation }] };
+      } catch (err) {
+        console.error("Tool error [explainCode]:", err instanceof Error ? err.message : "unknown");
+        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+      }
     },
   );
 
@@ -286,19 +316,24 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ code, style }) => {
-      const docStyle = style ?? "tsdoc";
-      const styleInstructions: Record<string, string> = {
-        jsdoc: "Add JSDoc comments (/** */) to all exported functions, classes, and interfaces. Include @param, @returns, and @example where appropriate.",
-        tsdoc: "Add TSDoc comments (/** */) to all exported functions, classes, and interfaces. Include @param, @returns, @remarks, and @example where appropriate. Use TSDoc-specific tags.",
-        inline: "Add concise inline comments (// ) above non-obvious logic. Do not comment self-evident code. Focus on why, not what.",
-      };
-      const prompt = [
-        `${styleInstructions[docStyle]} Return the full code with documentation added.`,
-        `\`\`\`\n${code}\n\`\`\``,
-      ].join("\n\n");
+      try {
+        const docStyle = style ?? "tsdoc";
+        const styleInstructions: Record<string, string> = {
+          jsdoc: "Add JSDoc comments (/** */) to all exported functions, classes, and interfaces. Include @param, @returns, and @example where appropriate.",
+          tsdoc: "Add TSDoc comments (/** */) to all exported functions, classes, and interfaces. Include @param, @returns, @remarks, and @example where appropriate. Use TSDoc-specific tags.",
+          inline: "Add concise inline comments (// ) above non-obvious logic. Do not comment self-evident code. Focus on why, not what.",
+        };
+        const prompt = [
+          `${styleInstructions[docStyle]} Return the full code with documentation added.`,
+          `\`\`\`\n${code}\n\`\`\``,
+        ].join("\n\n");
 
-      const documented = await runAI(env, "standard", prompt, 8192);
-      return { content: [{ type: "text", text: documented }] };
+        const documented = await runAI(env, "standard", prompt, 8192);
+        return { content: [{ type: "text", text: documented }] };
+      } catch (err) {
+        console.error("Tool error [generateDocs]:", err instanceof Error ? err.message : "unknown");
+        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+      }
     },
   );
 
@@ -311,13 +346,18 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ code }) => {
-      const prompt = [
-        "Generate TypeScript type definitions for this code. Infer interfaces, type aliases, and generics from usage patterns. Return only the typed version of the code.",
-        `\`\`\`\n${code}\n\`\`\``,
-      ].join("\n\n");
+      try {
+        const prompt = [
+          "Generate TypeScript type definitions for this code. Infer interfaces, type aliases, and generics from usage patterns. Return only the typed version of the code.",
+          `\`\`\`\n${code}\n\`\`\``,
+        ].join("\n\n");
 
-      const typed = await runAI(env, "standard", prompt, 8192);
-      return { content: [{ type: "text", text: typed }] };
+        const typed = await runAI(env, "standard", prompt, 8192);
+        return { content: [{ type: "text", text: typed }] };
+      } catch (err) {
+        console.error("Tool error [generateTypes]:", err instanceof Error ? err.message : "unknown");
+        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+      }
     },
   );
 
@@ -331,14 +371,19 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ code, error }) => {
-      const prompt = [
-        "Fix the bug in this code. Return only the corrected code.",
-        `Error:\n${error}`,
-        `\`\`\`\n${code}\n\`\`\``,
-      ].join("\n\n");
+      try {
+        const prompt = [
+          "Fix the bug in this code. Return only the corrected code.",
+          `Error:\n${error}`,
+          `\`\`\`\n${code}\n\`\`\``,
+        ].join("\n\n");
 
-      const fixed = await runAI(env, "standard", prompt, 8192);
-      return { content: [{ type: "text", text: fixed }] };
+        const fixed = await runAI(env, "standard", prompt, 8192);
+        return { content: [{ type: "text", text: fixed }] };
+      } catch (err) {
+        console.error("Tool error [fixBug]:", err instanceof Error ? err.message : "unknown");
+        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+      }
     },
   );
 
@@ -351,16 +396,21 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ diff }) => {
-      const prompt = [
-        "Generate a concise git commit message for this diff using conventional commits format (feat/fix/refactor/docs/test/chore).",
-        "Format: type(scope): description",
-        "Keep the first line under 72 characters. Add a blank line and body only if the change is non-trivial.",
-        "Return only the commit message, nothing else.",
-        `\`\`\`diff\n${diff}\n\`\`\``,
-      ].join("\n\n");
+      try {
+        const prompt = [
+          "Generate a concise git commit message for this diff using conventional commits format (feat/fix/refactor/docs/test/chore).",
+          "Format: type(scope): description",
+          "Keep the first line under 72 characters. Add a blank line and body only if the change is non-trivial.",
+          "Return only the commit message, nothing else.",
+          `\`\`\`diff\n${diff}\n\`\`\``,
+        ].join("\n\n");
 
-      const message = await runAI(env, "fast", prompt, 1024);
-      return { content: [{ type: "text", text: message }] };
+        const message = await runAI(env, "fast", prompt, 1024);
+        return { content: [{ type: "text", text: message }] };
+      } catch (err) {
+        console.error("Tool error [generateCommitMessage]:", err instanceof Error ? err.message : "unknown");
+        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+      }
     },
   );
 
@@ -374,15 +424,20 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ description, bindings }) => {
-      const parts = [
-        "Generate a complete Cloudflare Worker in TypeScript with proper Env interface, fetch handler, and error handling.",
-        `Purpose: ${description}`,
-      ];
-      if (bindings) parts.push(`Bindings to include in the Env interface: ${bindings}`);
-      parts.push("Include the wrangler.toml snippet as a comment at the top. Return only the code.");
+      try {
+        const parts = [
+          "Generate a complete Cloudflare Worker in TypeScript with proper Env interface, fetch handler, and error handling.",
+          `Purpose: ${description}`,
+        ];
+        if (bindings) parts.push(`Bindings to include in the Env interface: ${bindings}`);
+        parts.push("Include the wrangler.toml snippet as a comment at the top. Return only the code.");
 
-      const boilerplate = await runAI(env, "standard", parts.join("\n\n"), 8192);
-      return { content: [{ type: "text", text: boilerplate }] };
+        const boilerplate = await runAI(env, "standard", parts.join("\n\n"), 8192);
+        return { content: [{ type: "text", text: boilerplate }] };
+      } catch (err) {
+        console.error("Tool error [generateWorkerBoilerplate]:", err instanceof Error ? err.message : "unknown");
+        return { content: [{ type: "text", text: "An error occurred while processing your request. Please try again." }] };
+      }
     },
   );
 
@@ -452,14 +507,26 @@ const authHandler: ExportedHandler<Env> = {
           return new Response("Invalid secret.", { status: 403 });
         }
 
-        const authRequest = JSON.parse(stored) as AuthRequest;
-        const { redirectTo } = await oauthHelpers.completeAuthorization({
-          request: authRequest,
-          userId: "owner",
-          metadata: { label: "claude-code" },
-          scope: authRequest.scope,
-          props: { userId: "owner" },
-        });
+        let authRequest: AuthRequest;
+        try {
+          authRequest = JSON.parse(stored) as AuthRequest;
+        } catch {
+          return new Response("Authorization failed.", { status: 400 });
+        }
+
+        let redirectTo: string;
+        try {
+          const result = await oauthHelpers.completeAuthorization({
+            request: authRequest,
+            userId: "owner",
+            metadata: { label: "claude-code" },
+            scope: authRequest.scope,
+            props: { userId: "owner" },
+          });
+          redirectTo = result.redirectTo;
+        } catch {
+          return new Response("Authorization failed.", { status: 400 });
+        }
 
         return Response.redirect(redirectTo, 302);
       }
