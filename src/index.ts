@@ -147,8 +147,14 @@ async function callModel(
     });
 
     const response = await Promise.race([aiPromise, timeoutPromise]);
-    const result = response as { response?: string };
-    return result.response ?? JSON.stringify(response);
+    const result = response as {
+      response?: string;
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    // OpenAI-style response (qwen3, llama, etc.) → choices[0].message.content
+    // Legacy Workers AI response → response
+    const text = result.choices?.[0]?.message?.content ?? result.response;
+    return text?.trim() ?? JSON.stringify(response);
   } finally {
     clearTimeout(timeoutId);
   }
