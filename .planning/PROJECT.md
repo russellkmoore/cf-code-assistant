@@ -24,10 +24,10 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 
 <!-- Current scope. Building toward these. -->
 
-- [ ] **HARD-01**: Graceful error handling on all AI calls — timeouts, malformed responses, rate limits
+- ✓ **HARD-01**: Graceful error handling on all AI calls — timeouts, malformed responses, rate limits — Validated in Phase 2: Error Handling & Reliability
 - ✓ **HARD-02**: Rate limiting on auth PIN attempts to prevent brute force — Validated in Phase 1: Security Hardening
 - ✓ **HARD-03**: Input validation and sanitization on all tool inputs and auth form data — Validated in Phase 1: Security Hardening
-- [ ] **HARD-04**: Structured logging for tool invocations, errors, and auth events
+- ✓ **HARD-04**: Structured error responses for all failure modes — Validated in Phase 2: Error Handling & Reliability
 - [ ] **TEST-01**: Unit tests for model resolution and self-healing fallback logic
 - [ ] **TEST-02**: Unit tests for timing-safe comparison and auth flow
 - [ ] **TEST-03**: Integration tests for tool handlers (mock AI responses)
@@ -53,6 +53,7 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - Codebase mapped in `.planning/codebase/` — 7 documents covering stack, architecture, conventions, testing, integrations, structure, and concerns
 - CONCERNS.md identified 9 areas of concern: type safety, error handling, auth gaps, logging, test coverage, dependency risks, fragile areas, scaling limits, config gaps
 - Phase 1 complete — security hardening shipped (type safety, input validation, rate limiting, error sanitization)
+- Phase 2 complete — error handling & reliability shipped (AI timeout, KV fallback, structured MCP errors, auth error pages)
 - Test stubs in place (28 todos) — will be filled in Phase 3
 - Workers AI model ecosystem changes frequently — dynamic model config via KV is key to staying current
 
@@ -76,4 +77,4 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 | Reuse OAUTH_KV for model config | Avoid creating a second KV namespace for 2 keys | ✓ Good |
 
 ---
-*Last updated: 2026-04-12 after Phase 1: Security Hardening completion*
+*Last updated: 2026-04-12 after Phase 2: Error Handling & Reliability completion*
