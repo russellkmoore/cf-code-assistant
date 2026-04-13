@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMcpServer } from "../index";
 import { createMockEnv } from "./helpers";
 
-// Helper: get a tool handler from the server's internal registry
+// WARNING: Accesses SDK internals (_registeredTools). If this breaks after an SDK update,
+// check McpServer's internal structure for the new property name.
 function getToolHandler(env: Env, toolName: string) {
   const server = createMcpServer(env);
   const tools = (server as any)._registeredTools;

@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { createMcpServer } from "../index";
 import { createMockEnv } from "./helpers";
 
+// WARNING: Accesses SDK internals (_registeredTools). If this breaks after an SDK update,
+// check McpServer's internal structure for the new property name.
 function getToolSchema(env: Env, toolName: string) {
   const server = createMcpServer(env);
   const tools = (server as any)._registeredTools;
