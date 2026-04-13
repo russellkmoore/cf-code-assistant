@@ -38,13 +38,7 @@ describe("SEC-04: Error message sanitization", () => {
     }
   });
 
-  it("auth 403 response says 'Invalid secret.' without revealing actual secret", async () => {
-    // This test verifies the auth handler returns "Invalid secret." not the MCP_SECRET value.
-    // The string "Invalid secret." is hardcoded in the auth POST handler.
-    // Direct string verification: the response body must be exactly "Invalid secret."
-    // (Integration test for this is in auth-flow.test.ts; here we verify the constant.)
-    const expectedResponse = "Invalid secret.";
-    expect(expectedResponse).not.toContain("test-secret-pin");
-    expect(expectedResponse).not.toContain("MCP_SECRET");
-  });
+  // Removed: "auth 403 response says 'Invalid secret.' without revealing actual secret"
+  // was vacuous — tested a local constant, not actual handler behavior.
+  // Covered by auth-flow.test.ts (line 190-193) which invokes authHandler.fetch.
 });
