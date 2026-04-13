@@ -22,16 +22,23 @@ const DEFAULT_MODELS: Record<ModelTier, keyof AiModels> = {
   standard: "@cf/qwen/qwen3-30b-a3b-fp8",
 };
 
+const AI_TIMEOUT_MS = 30_000;
+
 // KV keys: config:model:fast, config:model:standard
 // Set via Cloudflare dashboard KV editor to override defaults.
 
 async function resolveModel(env: Env, tier: ModelTier): Promise<keyof AiModels> {
   const kvKey = `config:model:${tier}`;
-  const override = await env.OAUTH_KV.get(kvKey);
-  if (override !== null) {
-    if (isAllowedModel(override)) return override;
-    // Self-heal: invalid model in KV — delete it, fall back to default
-    await env.OAUTH_KV.delete(kvKey);
+  try {
+    const override = await env.OAUTH_KV.get(kvKey);
+    if (override !== null) {
+      if (isAllowedModel(override)) return override;
+      // Self-heal: invalid model in KV — delete it, fall back to default
+      await env.OAUTH_KV.delete(kvKey);
+    }
+  } catch (err) {
+    // KV degraded — silently fall back to default (D-07)
+    console.warn(`[resolveModel] KV unavailable for key ${kvKey}:`, err instanceof Error ? err.message : "unknown");
   }
   return DEFAULT_MODELS[tier];
 }
@@ -120,16 +127,30 @@ async function callModel(
   userPrompt: string,
   maxTokens: number,
 ): Promise<string> {
-  const response = await env.AI.run(model, {
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
-    ],
-    max_tokens: maxTokens,
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    controller.signal.addEventListener("abort", () => {
+      reject(new Error("AI_TIMEOUT"));
+    });
   });
 
-  const result = response as { response?: string };
-  return result.response ?? JSON.stringify(response);
+  try {
+    const aiPromise = env.AI.run(model, {
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: maxTokens,
+    });
+
+    const response = await Promise.race([aiPromise, timeoutPromise]);
+    const result = response as { response?: string };
+    return result.response ?? JSON.stringify(response);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function runAI(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 4096): Promise<string> {
