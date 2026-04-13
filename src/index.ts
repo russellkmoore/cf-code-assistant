@@ -561,13 +561,24 @@ const authHandler: ExportedHandler<Env> = {
 
     if (url.pathname === "/authorize") {
       if (request.method === "GET") {
-        const authRequest = await oauthHelpers.parseAuthRequest(request);
-        const csrfToken = crypto.randomUUID();
-        await env.OAUTH_KV.put(`csrf:${csrfToken}`, JSON.stringify(authRequest), { expirationTtl: 300 });
+        try {
+          const authRequest = await oauthHelpers.parseAuthRequest(request);
+          const csrfToken = crypto.randomUUID();
+          await env.OAUTH_KV.put(`csrf:${csrfToken}`, JSON.stringify(authRequest), { expirationTtl: 300 });
 
-        return new Response(loginPage(csrfToken), {
-          headers: { "Content-Type": "text/html" },
-        });
+          return new Response(loginPage(csrfToken), {
+            headers: { "Content-Type": "text/html" },
+          });
+        } catch (err) {
+          console.error("[authHandler GET] Failed to initialize auth:", err instanceof Error ? err.message : "unknown");
+          return new Response(
+            errorPage("Authorization Error", "Failed to initialize the authorization flow. Please try again."),
+            {
+              status: 500,
+              headers: { "Content-Type": "text/html" },
+            },
+          );
+        }
       }
 
       if (request.method === "POST") {
