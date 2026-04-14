@@ -23,7 +23,12 @@ const DEFAULT_MODELS: Record<ModelTier, keyof AiModels> = {
   standard: "@cf/qwen/qwen3-30b-a3b-fp8",
 };
 
-const AI_TIMEOUT_MS = 30_000;
+const AI_TIMEOUT_MS = 45_000;
+
+// Byte cap for transformCode `code` input. Full-file rewrites >~8KB routinely
+// exceed AI_TIMEOUT_MS on qwen3-30b. Callers should send scoped snippets
+// (single function, single block) and splice results back in themselves.
+const TRANSFORM_CODE_MAX_BYTES = 8_000;
 
 // KV keys: config:model:fast, config:model:standard
 // Set via Cloudflare dashboard KV editor to override defaults.
@@ -185,7 +190,7 @@ type ErrorCode = "AI_TIMEOUT" | "AI_ERROR" | "INTERNAL_ERROR";
 
 function makeToolError(code: ErrorCode, toolName: string) {
   const messages: Record<ErrorCode, string> = {
-    AI_TIMEOUT: `[ERROR: AI_TIMEOUT] The AI model did not respond within 30 seconds for tool ${toolName}. Please retry.`,
+    AI_TIMEOUT: `[ERROR: AI_TIMEOUT] The AI model did not respond within ${AI_TIMEOUT_MS / 1000} seconds for tool ${toolName}. Please retry.`,
     AI_ERROR: `[ERROR: AI_ERROR] The AI model returned an error for tool ${toolName}. The service may be temporarily degraded.`,
     INTERNAL_ERROR: `[ERROR: INTERNAL_ERROR] An internal error occurred in tool ${toolName}. Please retry.`,
   };
@@ -272,13 +277,24 @@ function createMcpServer(env: Env) {
   server.registerTool(
     "transformCode",
     {
-      description: "Apply mechanical transformations to code: rename, reformat, convert patterns, add types, etc.",
+      description: "Apply mechanical transformations to code: rename, reformat, convert patterns, add types, etc. Scoped snippets only — input code is capped at 8KB. For larger files, send a single function or block and splice the result back yourself.",
       inputSchema: {
         code: z.string().max(100_000).trim().describe("The code to transform"),
         instruction: z.string().max(10_000).trim().describe("What transformation to apply"),
       },
     },
     async ({ code, instruction }) => {
+      const codeBytes = new TextEncoder().encode(code).byteLength;
+      if (codeBytes > TRANSFORM_CODE_MAX_BYTES) {
+        logToolError({ tool: "transformCode", error_type: "AI_ERROR", input_size_bytes: codeBytes });
+        return {
+          content: [{
+            type: "text" as const,
+            text: `[ERROR: INPUT_TOO_LARGE] transformCode received ${codeBytes} bytes; cap is ${TRANSFORM_CODE_MAX_BYTES}. Full-file rewrites at this size routinely exceed the ${AI_TIMEOUT_MS / 1000}s model timeout. Scope the transformation to a single function or block and splice the result back yourself.`,
+          }],
+          isError: true as const,
+        };
+      }
       try {
         const prompt = [
           `Apply the following transformation to this code. Return only the transformed code.`,
@@ -292,8 +308,7 @@ function createMcpServer(env: Env) {
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
         const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
-        const inputSize = new TextEncoder().encode(code).byteLength;
-        logToolError({ tool: "transformCode", error_type: errorType, input_size_bytes: inputSize });
+        logToolError({ tool: "transformCode", error_type: errorType, input_size_bytes: codeBytes });
         return makeToolError(errorType as ErrorCode, "transformCode");
       }
     },
