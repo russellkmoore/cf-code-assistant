@@ -1,114 +1,124 @@
 # Roadmap: CF Code Assistant
 
+## Milestones
+
+- ✅ **v1.0 Production Hardening** - Phases 0-4 (shipped: security, error handling, 108 tests / 95.5% coverage, structured logging)
+- 🚧 **v2.0 Concurrent Batch Fan-out** - Phases 5-8 (in progress)
+
 ## Overview
 
-The codebase was built in a single session and ships the core value — offloading mechanical code generation from Claude to Workers AI. This roadmap hardens it for production: start with a clean git baseline, eliminate the security attack surface, make error handling explicit, establish test coverage for every critical path, and add structured observability. Each phase leaves the server more reliable and trustworthy than the last.
+v2.0 is **additive and narrow**: one new MCP tool, `code_assist_batch`, that fans an array of
+independent code-assist tasks out to the existing per-kind Qwen executor with bounded concurrency,
+a per-task timeout, a per-call cap, and an order-preserving partial-results contract. The build order
+is **dependency-forced** (all four HIGH-confidence research tracks converged on it): extract the shared
+`runTask` executor (behavior-preserving) → build the pure, importable batch core + bounded pool +
+timeout → register the tool with its structured-output contract → verify end-to-end. The dominant risk
+is not the pool but the seams where new fan-out code meets frozen v1.0 behavior — so the riskiest work
+(prompt-drift-invisible `runTask` extraction) is isolated and front-loaded in Phase 5, guarded by a new
+byte-equality prompt-snapshot test the existing AI-mocked suite cannot provide.
 
 ## Phases
 
 **Phase Numbering:**
-- Integer phases (0, 1, 2, ...): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+- Integer phases (5, 6, 7, 8): Planned milestone work (continued from v1.0, which ended at Phase 4)
+- Decimal phases (6.1, 6.2): Urgent insertions (marked with INSERTED)
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 0: Repository Foundation** - Initialize git with .gitignore and capture the current codebase as baseline
-- [ ] **Phase 1: Security Hardening** - Eliminate type-safety holes, validate all inputs, cap sizes, protect auth from brute force
-- [ ] **Phase 2: Error Handling & Reliability** - Wrap all AI calls with timeouts and structured error responses
-- [ ] **Phase 3: Test Infrastructure** - Configure vitest, mock AI calls, cover all critical paths with unit and integration tests
-- [ ] **Phase 4: Observability** - Add structured logging for tool invocations, errors, and auth events
+<details>
+<summary>✅ v1.0 Production Hardening (Phases 0-4) - SHIPPED</summary>
+
+- [x] **Phase 0: Repository Foundation** - Git baseline + .gitignore + setup docs (INFRA-01, INFRA-02)
+- [x] **Phase 1: Security Hardening** - Type-safe routing, input caps, model allowlist, auth rate limiting (SEC-01/02, HARD-02/03)
+- [x] **Phase 2: Error Handling & Reliability** - AI timeouts, KV fallback, structured error responses (HARD-01, HARD-04)
+- [x] **Phase 3: Test Infrastructure** - vitest + Workers pool, mocked AI, 108 tests / 95.5% coverage (TEST-01..05)
+- [x] **Phase 4: Observability** - Structured request/response/error logging (OBS-01)
+
+Full v1.0 phase detail is recorded in PROJECT.md (Validated requirements) and git history.
+
+</details>
+
+### 🚧 v2.0 Concurrent Batch Fan-out (In Progress)
+
+**Milestone Goal:** Add a single `code_assist_batch` MCP tool that runs many bounded code-assist
+tasks concurrently in one call, reusing the existing executor — turning "K parallel Claude executors"
+into "K executors × an N-wide cheap batch each," keeping Claude thin (orchestrate + validate).
+
+- [ ] **Phase 5: Extract Shared `runTask` Executor** - Behavior-preserving refactor lifting the prompt-build head of 11 handlers into a `runTask(kind, input)` dispatch map; all 108 tests stay green + new prompt-snapshot guard
+- [ ] **Phase 6: Batch Core + Bounded Pool + Timeout** - Pure, env-free, dependency-injected `executeBatch` / `mapWithConcurrency` / `withTimeout` with cap, bounded concurrency, per-task timeout, order-preservation, and failure isolation
+- [ ] **Phase 7: Register `code_assist_batch` + Result Contract** - First structured-output tool in the repo: Zod in/out schemas, `structuredContent` + text summary, per-task + batch result contract, MCP annotations
+- [ ] **Phase 8: Verify End-to-End** - Clean build, full suite green, MCP Inspector mixed batch (normal + failing + timeout) confirms order-preserving partial results
 
 ## Phase Details
 
-### Phase 0: Repository Foundation
-**Goal**: The codebase is version-controlled with a clean baseline commit and up-to-date setup documentation
-**Depends on**: Nothing (first phase)
-**Requirements**: INFRA-01, INFRA-02
+### Phase 5: Extract Shared `runTask` Executor
+**Goal**: A single reusable `runTask(kind, input)` dispatch is the one source of truth for prompt + tier + maxTokens across both the single-task tools and the (future) batch tool — with observable behavior identical to today
+**Depends on**: Phase 4 (v1.0 shipped)
+**Requirements**: BATCH-01, BATCH-02
 **Success Criteria** (what must be TRUE):
-  1. `git log` shows an initial commit containing all current source files
-  2. `.gitignore` excludes node_modules, .dev.vars, wrangler secrets, and build artifacts
-  3. SETUP.md reflects the current deployment steps including hardening changes planned in subsequent phases
-  4. A developer can clone the repo and follow SETUP.md to deploy without ambiguity
-**Plans:** 2 plans
+  1. `runTask(kind, input)` exists as a `TASK_SPECS` dispatch map (kind → tier, maxTokens, buildPrompt); the 11 AI-backed handler heads call it while each handler's try/runAIWithMetrics/log/catch tail is unchanged (routingInfo, the static no-AI tool, is excluded)
+  2. All 108 existing tests pass and `npx tsc --noEmit` is clean — `tool-handlers`, `observability`, and `input-validation` suites are green with no changes to their assertions
+  3. A new `runtask.test.ts` asserts byte-identical `buildPrompt` output per kind (the only guard against prompt drift, which the AI-mocked suite cannot see) — covering at minimum generateCode, reviewCode, transformCode, explainCode
+  4. `explainCode`'s depth-conditional routing is preserved (detailed → standard/4096, brief/eli5 → fast/2048) — modeled as a function of `input`, not a constant — and `transformCode`'s pre-AI 8KB byte cap still fires
+**Plans**: TBD
 
 Plans:
-- [x] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
-- [x] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
+- [ ] 05-01: TBD
 
-### Phase 1: Security Hardening
-**Goal**: The server rejects malformed inputs, validates model names, protects auth from brute force, and uses type-safe model routing
-**Depends on**: Phase 0
-**Requirements**: SEC-01, SEC-02, SEC-03, SEC-04, HARD-02, HARD-03
+### Phase 6: Batch Core + Bounded Pool + Timeout
+**Goal**: A pure, importable batch engine runs tasks through a bounded worker pool with a per-call cap, a per-task timeout, order-preservation, and failure isolation — fully unit-testable with a fake `runTask`, no `env` and no AI mock
+**Depends on**: Phase 5 (the core's only real dependency is a working `runTask`)
+**Requirements**: BATCH-03, BATCH-04, BATCH-05, BATCH-06
 **Success Criteria** (what must be TRUE):
-  1. The `as any` cast on Workers AI model routing is replaced with type-safe narrowing — TypeScript strict mode passes clean
-  2. Tool inputs with oversized code or context payloads are rejected with a 400 before reaching Workers AI
-  3. Model names read from KV are validated against an allowlist — an unrecognized model name never reaches `ai.run()`
-  4. More than 5 PIN attempts within 60 seconds from the same IP returns 429 without processing the attempt
-  5. Error responses to clients never include stack traces, internal state, or KV contents
-
-**Plans:** 4 plans
-
-- [x] 01-01-PLAN.md — Test infrastructure setup (vitest + Workers pool + test stubs)
-- [x] 01-02-PLAN.md — Type-safe model routing and allowlist validation (SEC-01, SEC-03)
-- [x] 01-03-PLAN.md — Input size caps and auth form validation (SEC-02, HARD-03)
-- [x] 01-04-PLAN.md — Rate limiting and error sanitization (HARD-02, SEC-04)
-
-### Phase 2: Error Handling & Reliability
-**Goal**: All AI calls handle timeouts and failures gracefully, and every failure mode returns a structured error response
-**Depends on**: Phase 1
-**Requirements**: HARD-01, HARD-04
-**Success Criteria** (what must be TRUE):
-  1. A Workers AI timeout or 5xx response causes the tool to return a descriptive error message to Claude rather than crashing the worker
-  2. Auth form parsing failures (malformed POST body, invalid JSON in KV) return 400 with a user-readable message instead of an unhandled 500
-  3. `oauthHelpers.parseAuthRequest()` and `completeAuthorization()` failures are caught and return appropriate HTTP error responses
-  4. The KV-based model fallback handles secondary KV failures without entering an infinite retry loop
-**Plans:** 2 plans
+  1. Peak in-flight task count never exceeds the concurrency cap (default 6, `BATCH_CONCURRENCY`) — verified by an in-flight counter test using a deferred/never-resolving mock; never a naive `Promise.all` over the task array
+  2. A batch with more than the per-call cap (default 50, `BATCH_MAX_TASKS`) is rejected fast with an actionable "split it" message before any task dispatches — a spy asserts zero `runTask` calls
+  3. Results are order-preserving by index (verified with inverted durations: task 0 slow, task N fast → `results[i].index === i`) and failure-isolated (one throwing task yields one `status:'error'` entry while siblings still return `status:'ok'`) — index-write into a pre-sized array, never `push`
+  4. A task exceeding the per-task timeout (default 45000ms = `AI_TIMEOUT_MS`, `BATCH_TASK_TIMEOUT_MS`) returns a `status:'error'` entry without hanging the batch; a mock that resolves *after* the timeout produces no double-settle and no unhandled rejection — `withTimeout` keeps the settle-once + two-handler `.then(onResolve, onReject)` form
+**Plans**: TBD
 
 Plans:
-- [x] 02-01-PLAN.md — Error handling infrastructure (AI timeout, KV fallback, makeToolError helper, errorPage template)
-- [x] 02-02-PLAN.md — Wire error handling into all tool handlers and auth GET handler
+- [ ] 06-01: TBD
 
-### Phase 3: Test Infrastructure
-**Goal**: Every critical path — model resolution, auth flow, tool handlers, and error paths — is covered by automated tests that mock AI calls
-**Depends on**: Phase 2
-**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04, TEST-05
+### Phase 7: Register `code_assist_batch` + Result Contract
+**Goal**: `code_assist_batch` is wired into `createMcpServer` as the repo's first structured-output tool, returning an order-preserving partial-results contract that parses against its declared output schema
+**Depends on**: Phase 6 (registration needs `executeBatch`) and Phase 5 (needs `runTask`)
+**Requirements**: BATCH-07, BATCH-08, BATCH-09
 **Success Criteria** (what must be TRUE):
-  1. `npm test` runs without errors and produces a coverage report — no real Workers AI calls are made
-  2. Unit tests verify model resolution selects the correct tier and falls back to defaults when KV returns an invalid model
-  3. Unit tests verify timing-safe comparison rejects wrong secrets and accepts correct ones
-  4. Integration tests exercise the full auth flow: CSRF token creation, PIN submission, token exchange
-  5. Tests for error paths cover AI timeout, invalid model name, expired CSRF token, and rate limit enforcement
-**Plans:** 3 plans
+  1. Each task returns independently as `{id, index, kind, status:'ok', result, latency_ms}` or `{id, index, kind, status:'error', error, error_type, latency_ms}` where `error_type` is one of `timeout | validation | ai_error`; per-task `input` is an open record validated per-kind *inside* `runTask` (not a discriminated union at the MCP boundary, which would reject the whole batch on one bad task)
+  2. The batch returns a summary with `total`, `succeeded`, `failed`, and `failedIds`, plus a short human-readable text block alongside the structured results
+  3. The tool returns `structuredContent` AND a `content` text summary together, declares Zod input + output schemas (keeping `result: z.unknown()` and `as const` status literals), and sets annotations `readOnlyHint:false, destructiveHint:false, idempotentHint:false, openWorldHint:true`
+  4. A unit test parses real `executeBatch` output (all-ok AND mixed) against the output schema and both pass; the tool inherits the existing OAuth gate by registering in the same `createMcpServer` (one-line wire)
+**Plans**: TBD
 
 Plans:
-- [x] 03-01-PLAN.md — Test helpers, exports for testability, and model resolution unit tests (TEST-01, TEST-05)
-- [x] 03-02-PLAN.md — Auth flow, timingSafeEqual, error sanitization, and rate limiting tests (TEST-02, TEST-04)
-- [x] 03-03-PLAN.md — Tool handler integration tests and input validation tests (TEST-03, TEST-04)
+- [ ] 07-01: TBD
 
-### Phase 4: Observability
-**Goal**: Tool invocations, auth events, and errors are all logged with structured context visible in Cloudflare dashboard
-**Depends on**: Phase 3
-**Requirements**: OBS-01, OBS-02, OBS-03
+### Phase 8: Verify End-to-End
+**Goal**: The whole seam is proven end-to-end through the real `createMcpServer` — order-preserving partial results and the timeout path both demonstrated, with the single-task tools and build untouched
+**Depends on**: Phase 7
+**Requirements**: BATCH-10
 **Success Criteria** (what must be TRUE):
-  1. Every tool invocation produces a log entry containing tool name, model tier, model used, and latency in milliseconds
-  2. Every error produces a log entry containing the tool name, input size, and error type — no stack traces or secrets in log output
-  3. Auth events (attempt, success, failure, rate limit hit) each produce a distinct structured log entry
-  4. Cloudflare Workers tail logs show all three log categories without additional configuration
-**Plans:** 2 plans
+  1. `npm run build` is clean and the full suite (108 existing + new runtask/batch-core/batch-tool tests) is green
+  2. An MCP Inspector run (`npx @modelcontextprotocol/inspector`) of a mixed batch — a normal task, a deliberately failing task, and a deliberately slow/timeout task — returns order-preserving partial results: the failing task is a `status:'error'` entry, the timeout task hits the timeout path, and the normal task is `status:'ok'`, all in input order
+  3. Inspector confirms the response renders both `structuredContent` and the text summary; the single-task tools still pass their existing tests, demonstrating the refactor stayed behavior-preserving end-to-end
+**Plans**: TBD
 
 Plans:
-- [x] 04-01-PLAN.md — Structured logging module and tool handler wiring (OBS-01, OBS-02)
-- [x] 04-02-PLAN.md — Auth event logging and observability integration tests (OBS-03)
+- [ ] 08-01: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 0 → 1 → 2 → 3 → 4
+Phases execute in numeric order: 5 → 6 → 7 → 8 (dependency-forced; do not reorder)
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 0. Repository Foundation | 0/TBD | Not started | - |
-| 1. Security Hardening | 0/4 | Planned | - |
-| 2. Error Handling & Reliability | 0/TBD | Not started | - |
-| 3. Test Infrastructure | 0/3 | Planned | - |
-| 4. Observability | 0/2 | Planned | - |
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 0. Repository Foundation | v1.0 | — | Complete | shipped |
+| 1. Security Hardening | v1.0 | 4/4 | Complete | shipped |
+| 2. Error Handling & Reliability | v1.0 | 2/2 | Complete | shipped |
+| 3. Test Infrastructure | v1.0 | 3/3 | Complete | shipped |
+| 4. Observability | v1.0 | 2/2 | Complete | shipped |
+| 5. Extract Shared `runTask` Executor | v2.0 | 0/TBD | Not started | - |
+| 6. Batch Core + Bounded Pool + Timeout | v2.0 | 0/TBD | Not started | - |
+| 7. Register `code_assist_batch` + Result Contract | v2.0 | 0/TBD | Not started | - |
+| 8. Verify End-to-End | v2.0 | 0/TBD | Not started | - |

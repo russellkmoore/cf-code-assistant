@@ -62,26 +62,29 @@ Explicitly excluded for v2.0. Documented to prevent scope creep.
 
 ## Traceability
 
-Populated during roadmap creation.
+Confirmed during roadmap creation (2026-06-26). The proposed mapping was validated against the
+dependency-forced build order; every BATCH requirement maps to exactly one phase, no orphans, no
+duplicates.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BATCH-01 | Phase 5 | Pending |
-| BATCH-02 | Phase 5 | Pending |
-| BATCH-03 | Phase 6 | Pending |
-| BATCH-04 | Phase 6 | Pending |
-| BATCH-05 | Phase 6 | Pending |
-| BATCH-06 | Phase 6 | Pending |
-| BATCH-07 | Phase 7 | Pending |
-| BATCH-08 | Phase 7 | Pending |
-| BATCH-09 | Phase 7 | Pending |
-| BATCH-10 | Phase 8 | Pending |
+| BATCH-01 | Phase 5 | Planned |
+| BATCH-02 | Phase 5 | Planned |
+| BATCH-03 | Phase 6 | Planned |
+| BATCH-04 | Phase 6 | Planned |
+| BATCH-05 | Phase 6 | Planned |
+| BATCH-06 | Phase 6 | Planned |
+| BATCH-07 | Phase 7 | Planned |
+| BATCH-08 | Phase 7 | Planned |
+| BATCH-09 | Phase 7 | Planned |
+| BATCH-10 | Phase 8 | Planned |
 
 **Coverage:**
 - v2.0 requirements: 10 total
-- Mapped to phases: 10 (proposed — roadmapper confirms)
+- Mapped to phases: 10 ✓ (confirmed)
 - Unmapped: 0 ✓
+- Duplicated: 0 ✓
 
 ---
 *Requirements defined: 2026-06-26*
-*Last updated: 2026-06-26 after v2.0 requirements definition*
+*Last updated: 2026-06-26 after v2.0 roadmap creation (traceability confirmed)*
