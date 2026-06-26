@@ -680,17 +680,17 @@ This phase creates a pure engine module with no network calls, no auth, and no u
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`npm test` vs. vitest `--pool=threads` for pure batch tests**
    - What we know: existing tests use `cloudflarePool`, which adds ~3s startup. Pure batch tests need no Worker bindings.
    - What's unclear: whether to add a separate vitest config for pure tests or accept the pool overhead.
-   - Recommendation: Accept the pool overhead for simplicity — one test command, one config. The pool correctly handles plain async/await, and the batch tests are fast (< 100ms).
+   - RESOLVED: Accept the pool overhead for simplicity — one test command, one config. The pool correctly handles plain async/await, and the batch tests are fast (< 100ms).
 
 2. **`vi.useFakeTimers()` for timeout tests**
    - What we know: `setTimeout`-based timeouts require either real delays or fake timers in tests.
    - What's unclear: whether vitest's fake timer support in `cloudflarePool` mode works correctly.
-   - Recommendation: Use real short timeouts (10ms) for the timeout test rather than fake timers to avoid potential `cloudflarePool` + fake-timer interaction issues. The deferred-mock approach (Task Shape 4) with a 10ms timeout and a `setTimeout(r, 0)` flush is simpler and more reliable.
+   - RESOLVED: Use real short timeouts (10ms) for the timeout test rather than fake timers to avoid potential `cloudflarePool` + fake-timer interaction issues. The deferred-mock approach (Task Shape 4) with a 10ms timeout and a `setTimeout(r, 0)` flush is simpler and more reliable.
 
 ---
 
