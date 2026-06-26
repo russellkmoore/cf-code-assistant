@@ -60,10 +60,11 @@ into "K executors × an N-wide cheap batch each," keeping Claude thin (orchestra
   2. All 108 existing tests pass and `npx tsc --noEmit` is clean — `tool-handlers`, `observability`, and `input-validation` suites are green with no changes to their assertions
   3. A new `runtask.test.ts` asserts byte-identical `buildPrompt` output per kind (the only guard against prompt drift, which the AI-mocked suite cannot see) — covering at minimum generateCode, reviewCode, transformCode, explainCode
   4. `explainCode`'s depth-conditional routing is preserved (detailed → standard/4096, brief/eli5 → fast/2048) — modeled as a function of `input`, not a constant — and `transformCode`'s pre-AI 8KB byte cap still fires
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md — Extract TASK_SPECS dispatch map + runTask executor + ValidationError; delegate all 11 AI-backed handler heads (BATCH-01)
+- [ ] 05-02-PLAN.md — Add runtask.test.ts: byte-identical buildPrompt snapshots for all 11 kinds, explainCode resolve, transformCode 8KB cap (BATCH-02)
 
 ### Phase 6: Batch Core + Bounded Pool + Timeout
 **Goal**: A pure, importable batch engine runs tasks through a bounded worker pool with a per-call cap, a per-task timeout, order-preservation, and failure isolation — fully unit-testable with a fake `runTask`, no `env` and no AI mock
