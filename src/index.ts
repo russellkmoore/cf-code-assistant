@@ -200,6 +200,196 @@ function makeToolError(code: ErrorCode, toolName: string) {
   };
 }
 
+// --- Task dispatch (runTask executor) ---
+
+type TaskKind =
+  | "generateCode"
+  | "reviewCode"
+  | "transformCode"
+  | "scaffoldTests"
+  | "quickTask"
+  | "explainCode"
+  | "generateDocs"
+  | "generateTypes"
+  | "fixBug"
+  | "generateCommitMessage"
+  | "generateWorkerBoilerplate";
+
+interface TaskSpec {
+  /** Pure: resolve tier + maxTokens from input. Constant kinds ignore input. */
+  resolve(input: Record<string, unknown>): { tier: ModelTier; maxTokens: number };
+  /** Pure: build the exact prompt string. Byte-identical to the current inline build. */
+  buildPrompt(input: Record<string, unknown>): string;
+  /** Optional pre-AI guard. Throws a typed ValidationError (e.g. transformCode 8KB cap). */
+  validate?(input: Record<string, unknown>): void;
+}
+
+class ValidationError extends Error {
+  constructor(msg: string, readonly meta?: Record<string, unknown>) {
+    super(msg);
+    this.name = "ValidationError";
+  }
+}
+
+const TASK_SPECS: Record<TaskKind, TaskSpec> = {
+  generateCode: {
+    resolve: () => ({ tier: "standard", maxTokens: 8192 }),
+    buildPrompt: (input) => {
+      const { prompt, context, language, style } = input as { prompt: string; context?: string; language?: string; style?: string };
+      const parts: string[] = [];
+      if (language) parts.push(`Language: ${language}`);
+      if (style) parts.push(`Style: ${style}`);
+      if (context) parts.push(`Context:\n${context}`);
+      parts.push(`Task:\n${prompt}`);
+      return parts.join("\n\n");
+    },
+  },
+  reviewCode: {
+    resolve: () => ({ tier: "standard", maxTokens: 4096 }),
+    buildPrompt: (input) => {
+      const { code, criteria } = input as { code: string; criteria?: string };
+      return [
+        "Review the following code and return structured findings as a markdown list.",
+        "Categories: Bugs, Style, Performance, Security, Suggestions.",
+        "Only include categories where you find issues.",
+        criteria ? `Focus on: ${criteria}` : "",
+        `\`\`\`\n${code}\n\`\`\``,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+    },
+  },
+  transformCode: {
+    resolve: () => ({ tier: "standard", maxTokens: 8192 }),
+    buildPrompt: (input) => {
+      const { code, instruction } = input as { code: string; instruction: string };
+      return [
+        `Apply the following transformation to this code. Return only the transformed code.`,
+        `Transformation: ${instruction}`,
+        `\`\`\`\n${code}\n\`\`\``,
+      ].join("\n\n");
+    },
+    validate: (input) => {
+      const { code } = input as { code: string };
+      const codeBytes = new TextEncoder().encode(code).byteLength;
+      if (codeBytes > TRANSFORM_CODE_MAX_BYTES) {
+        throw new ValidationError("INPUT_TOO_LARGE", { codeBytes });
+      }
+    },
+  },
+  scaffoldTests: {
+    resolve: () => ({ tier: "standard", maxTokens: 8192 }),
+    buildPrompt: (input) => {
+      const { code, framework } = input as { code: string; framework?: string };
+      const fw = framework ?? "vitest";
+      return [
+        `Generate comprehensive test scaffolding using ${fw} for the following code.`,
+        `Include happy path, edge cases, and error cases. Return only test code.`,
+        `\`\`\`\n${code}\n\`\`\``,
+      ].join("\n\n");
+    },
+  },
+  quickTask: {
+    resolve: () => ({ tier: "fast", maxTokens: 4096 }),
+    buildPrompt: (input) => {
+      const { instruction } = input as { instruction: string };
+      return instruction;
+    },
+  },
+  explainCode: {
+    resolve: (input) => {
+      const { depth } = input as { depth?: string };
+      const level = depth ?? "brief";
+      return level === "detailed"
+        ? { tier: "standard", maxTokens: 4096 }
+        : { tier: "fast", maxTokens: 2048 };
+    },
+    buildPrompt: (input) => {
+      const { code, depth } = input as { code: string; depth?: string };
+      const level = depth ?? "brief";
+      const depthInstructions: Record<string, string> = {
+        brief: "Explain in 1-2 concise sentences what this code does.",
+        detailed: "Provide a detailed walkthrough of this code: purpose, control flow, key decisions, and any notable patterns.",
+        eli5: "Explain this code like I'm 5 years old, using a simple real-world analogy. No jargon.",
+      };
+      return [
+        depthInstructions[level],
+        `\`\`\`\n${code}\n\`\`\``,
+      ].join("\n\n");
+    },
+  },
+  generateDocs: {
+    resolve: () => ({ tier: "standard", maxTokens: 8192 }),
+    buildPrompt: (input) => {
+      const { code, style } = input as { code: string; style?: string };
+      const docStyle = style ?? "tsdoc";
+      const styleInstructions: Record<string, string> = {
+        jsdoc: "Add JSDoc comments (/** */) to all exported functions, classes, and interfaces. Include @param, @returns, and @example where appropriate.",
+        tsdoc: "Add TSDoc comments (/** */) to all exported functions, classes, and interfaces. Include @param, @returns, @remarks, and @example where appropriate. Use TSDoc-specific tags.",
+        inline: "Add concise inline comments (// ) above non-obvious logic. Do not comment self-evident code. Focus on why, not what.",
+      };
+      return [
+        `${styleInstructions[docStyle]} Return the full code with documentation added.`,
+        `\`\`\`\n${code}\n\`\`\``,
+      ].join("\n\n");
+    },
+  },
+  generateTypes: {
+    resolve: () => ({ tier: "standard", maxTokens: 8192 }),
+    buildPrompt: (input) => {
+      const { code } = input as { code: string };
+      return [
+        "Generate TypeScript type definitions for this code. Infer interfaces, type aliases, and generics from usage patterns. Return only the typed version of the code.",
+        `\`\`\`\n${code}\n\`\`\``,
+      ].join("\n\n");
+    },
+  },
+  fixBug: {
+    resolve: () => ({ tier: "standard", maxTokens: 8192 }),
+    buildPrompt: (input) => {
+      const { code, error } = input as { code: string; error: string };
+      return [
+        "Fix the bug in this code. Return only the corrected code.",
+        `Error:\n${error}`,
+        `\`\`\`\n${code}\n\`\`\``,
+      ].join("\n\n");
+    },
+  },
+  generateCommitMessage: {
+    resolve: () => ({ tier: "fast", maxTokens: 1024 }),
+    buildPrompt: (input) => {
+      const { diff } = input as { diff: string };
+      return [
+        "Generate a concise git commit message for this diff using conventional commits format (feat/fix/refactor/docs/test/chore).",
+        "Format: type(scope): description",
+        "Keep the first line under 72 characters. Add a blank line and body only if the change is non-trivial.",
+        "Return only the commit message, nothing else.",
+        `\`\`\`diff\n${diff}\n\`\`\``,
+      ].join("\n\n");
+    },
+  },
+  generateWorkerBoilerplate: {
+    resolve: () => ({ tier: "standard", maxTokens: 8192 }),
+    buildPrompt: (input) => {
+      const { description, bindings } = input as { description: string; bindings?: string };
+      const parts = [
+        "Generate a complete Cloudflare Worker in TypeScript with proper Env interface, fetch handler, and error handling.",
+        `Purpose: ${description}`,
+      ];
+      if (bindings) parts.push(`Bindings to include in the Env interface: ${bindings}`);
+      parts.push("Include the wrangler.toml snippet as a comment at the top. Return only the code.");
+      return parts.join("\n\n");
+    },
+  },
+};
+
+async function runTask(env: Env, kind: TaskKind, input: Record<string, unknown>): Promise<AIResult> {
+  const spec = TASK_SPECS[kind];
+  spec.validate?.(input);
+  const { tier, maxTokens } = spec.resolve(input);
+  return runAIWithMetrics(env, tier, spec.buildPrompt(input), maxTokens);
+}
+
 // --- MCP Server factory ---
 
 function createMcpServer(env: Env) {
@@ -754,8 +944,8 @@ function loginPage(csrfToken: string): string {
 }
 
 // --- Test exports (named exports for unit testing) ---
-export { resolveModel, isAllowedModel, timingSafeEqual, callModel, makeToolError, createMcpServer, authHandler, runAIWithMetrics, ALLOWED_MODELS, DEFAULT_MODELS };
-export type { ModelTier, ErrorCode, AIResult };
+export { resolveModel, isAllowedModel, timingSafeEqual, callModel, makeToolError, createMcpServer, authHandler, runAIWithMetrics, ALLOWED_MODELS, DEFAULT_MODELS, runTask, TASK_SPECS, ValidationError };
+export type { ModelTier, ErrorCode, AIResult, TaskKind };
 
 // --- Wire it all up ---
 
