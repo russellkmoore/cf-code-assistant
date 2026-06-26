@@ -3,6 +3,8 @@ import { createMcpHandler } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { logToolInvocation, logToolError, logAuthEvent } from "./logger";
+import { executeBatch, readBatchConfig } from "./batch";
+import type { BatchTask, RunTask } from "./batch";
 
 // --- Model tier config ---
 
@@ -390,6 +392,63 @@ async function runTask(env: Env, kind: TaskKind, input: Record<string, unknown>)
   return runAIWithMetrics(env, tier, spec.buildPrompt(input), maxTokens);
 }
 
+// --- Batch schemas and helpers ---
+
+const BatchTaskInputSchema = z.object({
+  id: z.string().optional().describe("Caller-assigned task ID (defaults to index string if omitted)"),
+  kind: z.enum([
+    "generateCode",
+    "reviewCode",
+    "transformCode",
+    "scaffoldTests",
+    "quickTask",
+    "explainCode",
+    "generateDocs",
+    "generateTypes",
+    "fixBug",
+    "generateCommitMessage",
+    "generateWorkerBoilerplate",
+  ] as const).describe("Which code-assist tool to invoke"),
+  input: z.record(z.string(), z.unknown()).describe(
+    "Task-specific parameters. Validated per kind inside runTask, not at the batch boundary."
+  ),
+});
+
+const TaskResultOkSchema = z.object({
+  id: z.string(),
+  index: z.number().int(),
+  kind: z.string(),
+  status: z.literal("ok"),
+  result: z.unknown(),
+  latency_ms: z.number(),
+});
+
+const TaskResultErrorSchema = z.object({
+  id: z.string(),
+  index: z.number().int(),
+  kind: z.string(),
+  status: z.literal("error"),
+  error: z.string(),
+  error_type: z.enum(["timeout", "validation", "ai_error"] as const),
+  latency_ms: z.number(),
+});
+
+const BatchOutputSchema = z.object({
+  total: z.number().int(),
+  succeeded: z.number().int(),
+  failed: z.number().int(),
+  failedIds: z.array(z.string()),
+  results: z.array(z.discriminatedUnion("status", [TaskResultOkSchema, TaskResultErrorSchema])),
+  summary: z.string(),
+});
+
+function deriveErrorType(errMsg: string): "timeout" | "validation" | "ai_error" {
+  const msg = errMsg.toLowerCase();
+  if (msg.includes("timeout") || msg.includes("ai_timeout")) return "timeout";
+  if (msg.includes("input_too_large") || msg.includes("validationerror")) return "validation";
+  return "ai_error";
+}
+
 // --- MCP Server factory ---
 
 function createMcpServer(env: Env) {
@@ -689,6 +748,107 @@ function createMcpServer(env: Env) {
     },
   );
 
+  // --- Batch enrichment wrapper (closes over env) ---
+  async function runBatch(rawTasks: z.infer<typeof BatchTaskInputSchema>[]) {
+    const cfg = readBatchConfig(env as unknown as Record<string, string | undefined>);
+
+    // Adapter: wrap real runTask; returns AIResult so handler can extract latency_ms
+    const adapter: RunTask = (batchTask, _signal) =>
+      runTask(env, batchTask.kind, batchTask.input);
+
+    const tasks: BatchTask[] = rawTasks.map((t, i) => ({
+      id: t.id ?? String(i),
+      kind: t.kind,
+      input: t.input,
+    }));
+
+    const raw = await executeBatch(tasks, cfg, adapter);
+
+    // Enrich results: extract latency_ms and simplify result on ok path;
+    // derive error_type and approximate latency_ms on error path.
+    const results = raw.results.map((entry) => {
+      if (entry.status === "ok") {
+        const aiResult = entry.result as AIResult;
+        return {
+          id: entry.id,
+          index: entry.index,
+          kind: entry.kind,
+          status: "ok" as const,
+          result: aiResult.text,
+          latency_ms: aiResult.latency_ms,
+        };
+      } else {
+        const timeoutMatch = entry.error.match(/exceeded (\d+)ms timeout/);
+        const latency_ms = timeoutMatch ? parseInt(timeoutMatch[1], 10) : 0;
+        return {
+          id: entry.id,
+          index: entry.index,
+          kind: entry.kind,
+          status: "error" as const,
+          error: entry.error,
+          error_type: deriveErrorType(entry.error),
+          latency_ms,
+        };
+      }
+    });
+
+    const failedIds = results
+      .filter((r) => r.status === "error")
+      .map((r) => r.id);
+
+    const summary =
+      failedIds.length === 0
+        ? `${raw.succeeded}/${raw.total} tasks succeeded.`
+        : `${raw.succeeded}/${raw.total} tasks succeeded. ${raw.failed} failed: ${failedIds.join(", ")}.`;
+
+    return { total: raw.total, succeeded: raw.succeeded, failed: raw.failed, failedIds, results, summary };
+  }
+
+  server.registerTool(
+    "code_assist_batch",
+    {
+      description:
+        "Run multiple code-assist tasks concurrently in a single call. Each task specifies a kind (one of the 11 single-task tools) and a kind-specific input object. Returns an order-preserving partial-results array: each task independently succeeds or fails without affecting its siblings. Use this to fan out independent leaf work (test generation, scaffolding, mechanical transforms) to reduce sequential round-trips.",
+      inputSchema: {
+        tasks: z
+          .array(BatchTaskInputSchema)
+          .min(1)
+          .max(50)
+          .describe(
+            "Array of tasks to run concurrently (1–50). Each task has a kind and kind-specific input. Tasks are isolated: one failure does not abort others."
+          ),
+      },
+      outputSchema: BatchOutputSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ tasks }) => {
+      try {
+        const structured = await runBatch(tasks);
+        logToolInvocation({
+          tool: "code_assist_batch",
+          tier: "standard",
+          model: "mixed",
+          latency_ms: 0,
+        });
+        return {
+          content: [{ type: "text", text: structured.summary }],
+          structuredContent: structured,
+        };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        logToolError({ tool: "code_assist_batch", error_type: "AI_ERROR", input_size_bytes: 0 });
+        // over-cap and unexpected throws: isError:true skips outputSchema validation
+        void msg;
+        return makeToolError("INTERNAL_ERROR", "code_assist_batch");
+      }
+    },
+  );
+
   return server;
 }
 
@@ -868,7 +1028,7 @@ function loginPage(csrfToken: string): string {
 }
 
 // --- Test exports (named exports for unit testing) ---
-export { resolveModel, isAllowedModel, timingSafeEqual, callModel, makeToolError, createMcpServer, authHandler, runAIWithMetrics, ALLOWED_MODELS, DEFAULT_MODELS, runTask, TASK_SPECS, ValidationError };
+export { resolveModel, isAllowedModel, timingSafeEqual, callModel, makeToolError, createMcpServer, authHandler, runAIWithMetrics, ALLOWED_MODELS, DEFAULT_MODELS, runTask, TASK_SPECS, ValidationError, BatchOutputSchema, deriveErrorType };
 export type { ModelTier, ErrorCode, AIResult, TaskKind };
 
 // --- Wire it all up ---
