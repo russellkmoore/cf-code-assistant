@@ -46,7 +46,7 @@ tasks concurrently in one call, reusing the existing executor — turning "K par
 into "K executors × an N-wide cheap batch each," keeping Claude thin (orchestrate + validate).
 
 - [x] **Phase 5: Extract Shared `runTask` Executor** - Behavior-preserving refactor lifting the prompt-build head of 11 handlers into a `runTask(kind, input)` dispatch map; all 108 tests stay green + new prompt-snapshot guard (completed 2026-06-26)
-- [ ] **Phase 6: Batch Core + Bounded Pool + Timeout** - Pure, env-free, dependency-injected `executeBatch` / `mapWithConcurrency` / `withTimeout` with cap, bounded concurrency, per-task timeout, order-preservation, and failure isolation
+- [x] **Phase 6: Batch Core + Bounded Pool + Timeout** - Pure, env-free, dependency-injected `executeBatch` / `mapWithConcurrency` / `withTimeout` with cap, bounded concurrency, per-task timeout, order-preservation, and failure isolation (completed 2026-06-26)
 - [ ] **Phase 7: Register `code_assist_batch` + Result Contract** - First structured-output tool in the repo: Zod in/out schemas, `structuredContent` + text summary, per-task + batch result contract, MCP annotations
 - [ ] **Phase 8: Verify End-to-End** - Clean build, full suite green, MCP Inspector mixed batch (normal + failing + timeout) confirms order-preserving partial results
 
@@ -92,7 +92,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Pure env-free batch engine (src/batch.ts: executeBatch / mapWithConcurrency / withTimeout / readBatchConfig) + four headline tests in src/__tests__/batch.test.ts (BATCH-03, BATCH-04, BATCH-05, BATCH-06)
+- [x] 06-01-PLAN.md — Pure env-free batch engine (src/batch.ts: executeBatch / mapWithConcurrency / withTimeout / readBatchConfig) + four headline tests in src/__tests__/batch.test.ts (BATCH-03, BATCH-04, BATCH-05, BATCH-06)
 
 ### Phase 7: Register `code_assist_batch` + Result Contract
 
@@ -142,6 +142,6 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 (dependency-forced; do not 
 | 3. Test Infrastructure | v1.0 | 3/3 | Complete | shipped |
 | 4. Observability | v1.0 | 2/2 | Complete | shipped |
 | 5. Extract Shared `runTask` Executor | v2.0 | 2/2 | Complete   | 2026-06-26 |
-| 6. Batch Core + Bounded Pool + Timeout | v2.0 | 0/TBD | Not started | - |
+| 6. Batch Core + Bounded Pool + Timeout | v2.0 | 1/1 | Complete   | 2026-06-26 |
 | 7. Register `code_assist_batch` + Result Contract | v2.0 | 0/TBD | Not started | - |
 | 8. Verify End-to-End | v2.0 | 0/TBD | Not started | - |
