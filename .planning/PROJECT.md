@@ -44,6 +44,11 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - ✓ **OBS-01**: Structured request/response logging with tool name, tier, model used, latency — v1.0 Phase 4
 - ✓ **BATCH-01**: Shared `runTask(env, kind, input)` executor + `TASK_SPECS` dispatch map — single source of truth for prompt/tier/maxTokens; all 11 AI-backed handlers delegate to it with byte-identical observable behavior — v2.0 Phase 5
 - ✓ **BATCH-02**: Byte-equality prompt-snapshot guard (`runtask.test.ts`, 37 tests) against prompt drift the AI-mocked suite is structurally blind to — v2.0 Phase 5
+- ✓ **BATCH-03**: Bounded worker-cursor pool (`mapWithConcurrency`, default 6 `BATCH_CONCURRENCY`) — peak in-flight never exceeds the cap, never `Promise.all` over the task array — v2.0 Phase 6
+- ✓ **BATCH-04**: Per-call task cap (default 50, `BATCH_MAX_TASKS`) — `executeBatch` fast-rejects over-cap batches before any dispatch with an actionable "split it" error (zero `runTask` calls) — v2.0 Phase 6
+- ✓ **BATCH-05**: Per-task timeout (default 45000ms = `AI_TIMEOUT_MS`, `BATCH_TASK_TIMEOUT_MS`) via settle-once two-handler `withTimeout` — a late-settling orphan causes no double-settle and no unhandled rejection — v2.0 Phase 6
+- ✓ **BATCH-06**: Order-preserving (index-write into a pre-sized array, never `push`) + failure-isolated partial results — one throwing task yields a `status:'error'` entry while siblings still return `status:'ok'` — v2.0 Phase 6
+- ✓ **Batch core**: pure, env-free, dependency-injected `src/batch.ts` (`executeBatch`/`mapWithConcurrency`/`withTimeout`/`readBatchConfig`) — fully unit-tested with a fake `runTask`, no `env` and no AI mock (8 tests, zero new deps) — v2.0 Phase 6
 
 ### Active
 
@@ -118,4 +123,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-26 — Phase 5 complete (shared `runTask` executor extracted, BATCH-01/02 validated)*
+*Last updated: 2026-06-26 — Phase 6 complete (pure batch core `src/batch.ts` shipped, BATCH-03..06 validated; 153 tests green). Next: Phase 7 — register `code_assist_batch` + result contract.*
