@@ -69,7 +69,7 @@ into "K executors × an N-wide cheap batch each," keeping Claude thin (orchestra
 Plans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Extract TASK_SPECS dispatch map + runTask executor + ValidationError; delegate all 11 AI-backed handler heads (BATCH-01)
+- [x] 05-01-PLAN.md — Extract TASK_SPECS dispatch map + runTask executor + ValidationError; delegate all 11 AI-backed handler heads (BATCH-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -140,7 +140,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 (dependency-forced; do not 
 | 2. Error Handling & Reliability | v1.0 | 2/2 | Complete | shipped |
 | 3. Test Infrastructure | v1.0 | 3/3 | Complete | shipped |
 | 4. Observability | v1.0 | 2/2 | Complete | shipped |
-| 5. Extract Shared `runTask` Executor | v2.0 | 0/TBD | Not started | - |
+| 5. Extract Shared `runTask` Executor | v2.0 | 1/2 | In Progress|  |
 | 6. Batch Core + Bounded Pool + Timeout | v2.0 | 0/TBD | Not started | - |
 | 7. Register `code_assist_batch` + Result Contract | v2.0 | 0/TBD | Not started | - |
 | 8. Verify End-to-End | v2.0 | 0/TBD | Not started | - |
