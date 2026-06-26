@@ -411,13 +411,7 @@ function createMcpServer(env: Env) {
     },
     async ({ prompt, context, language, style }) => {
       try {
-        const parts: string[] = [];
-        if (language) parts.push(`Language: ${language}`);
-        if (style) parts.push(`Style: ${style}`);
-        if (context) parts.push(`Context:\n${context}`);
-        parts.push(`Task:\n${prompt}`);
-
-        const result = await runAIWithMetrics(env, "standard", parts.join("\n\n"), 8192);
+        const result = await runTask(env, "generateCode", { prompt, context, language, style });
         logToolInvocation({ tool: "generateCode", tier: "standard", model: result.model, latency_ms: result.latency_ms });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
@@ -441,17 +435,7 @@ function createMcpServer(env: Env) {
     },
     async ({ code, criteria }) => {
       try {
-        const prompt = [
-          "Review the following code and return structured findings as a markdown list.",
-          "Categories: Bugs, Style, Performance, Security, Suggestions.",
-          "Only include categories where you find issues.",
-          criteria ? `Focus on: ${criteria}` : "",
-          `\`\`\`\n${code}\n\`\`\``,
-        ]
-          .filter(Boolean)
-          .join("\n\n");
-
-        const result = await runAIWithMetrics(env, "standard", prompt, 4096);
+        const result = await runTask(env, "reviewCode", { code, criteria });
         logToolInvocation({ tool: "reviewCode", tier: "standard", model: result.model, latency_ms: result.latency_ms });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
@@ -474,30 +458,25 @@ function createMcpServer(env: Env) {
       },
     },
     async ({ code, instruction }) => {
-      const codeBytes = new TextEncoder().encode(code).byteLength;
-      if (codeBytes > TRANSFORM_CODE_MAX_BYTES) {
-        logToolError({ tool: "transformCode", error_type: "AI_ERROR", input_size_bytes: codeBytes });
-        return {
-          content: [{
-            type: "text" as const,
-            text: `[ERROR: INPUT_TOO_LARGE] transformCode received ${codeBytes} bytes; cap is ${TRANSFORM_CODE_MAX_BYTES}. Full-file rewrites at this size routinely exceed the ${AI_TIMEOUT_MS / 1000}s model timeout. Scope the transformation to a single function or block and splice the result back yourself.`,
-          }],
-          isError: true as const,
-        };
-      }
       try {
-        const prompt = [
-          `Apply the following transformation to this code. Return only the transformed code.`,
-          `Transformation: ${instruction}`,
-          `\`\`\`\n${code}\n\`\`\``,
-        ].join("\n\n");
-
-        const result = await runAIWithMetrics(env, "standard", prompt, 8192);
+        const result = await runTask(env, "transformCode", { code, instruction });
         logToolInvocation({ tool: "transformCode", tier: "standard", model: result.model, latency_ms: result.latency_ms });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
+        if (err instanceof ValidationError) {
+          const codeBytes = (err.meta?.codeBytes as number) ?? new TextEncoder().encode(code).byteLength;
+          logToolError({ tool: "transformCode", error_type: "AI_ERROR", input_size_bytes: codeBytes });
+          return {
+            content: [{
+              type: "text" as const,
+              text: `[ERROR: INPUT_TOO_LARGE] transformCode received ${codeBytes} bytes; cap is ${TRANSFORM_CODE_MAX_BYTES}. Full-file rewrites at this size routinely exceed the ${AI_TIMEOUT_MS / 1000}s model timeout. Scope the transformation to a single function or block and splice the result back yourself.`,
+            }],
+            isError: true as const,
+          };
+        }
         const msg = err instanceof Error ? err.message : "";
         const errorType = msg === "AI_TIMEOUT" ? "AI_TIMEOUT" : "AI_ERROR";
+        const codeBytes = new TextEncoder().encode(code).byteLength;
         logToolError({ tool: "transformCode", error_type: errorType, input_size_bytes: codeBytes });
         return makeToolError(errorType as ErrorCode, "transformCode");
       }
@@ -515,14 +494,7 @@ function createMcpServer(env: Env) {
     },
     async ({ code, framework }) => {
       try {
-        const fw = framework ?? "vitest";
-        const prompt = [
-          `Generate comprehensive test scaffolding using ${fw} for the following code.`,
-          `Include happy path, edge cases, and error cases. Return only test code.`,
-          `\`\`\`\n${code}\n\`\`\``,
-        ].join("\n\n");
-
-        const result = await runAIWithMetrics(env, "standard", prompt, 8192);
+        const result = await runTask(env, "scaffoldTests", { code, framework });
         logToolInvocation({ tool: "scaffoldTests", tier: "standard", model: result.model, latency_ms: result.latency_ms });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
@@ -545,7 +517,7 @@ function createMcpServer(env: Env) {
     },
     async ({ instruction }) => {
       try {
-        const result = await runAIWithMetrics(env, "fast", instruction, 4096);
+        const result = await runTask(env, "quickTask", { instruction });
         logToolInvocation({ tool: "quickTask", tier: "fast", model: result.model, latency_ms: result.latency_ms });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
@@ -569,19 +541,8 @@ function createMcpServer(env: Env) {
     },
     async ({ code, depth }) => {
       try {
-        const level = depth ?? "brief";
-        const depthInstructions: Record<string, string> = {
-          brief: "Explain in 1-2 concise sentences what this code does.",
-          detailed: "Provide a detailed walkthrough of this code: purpose, control flow, key decisions, and any notable patterns.",
-          eli5: "Explain this code like I'm 5 years old, using a simple real-world analogy. No jargon.",
-        };
-        const prompt = [
-          depthInstructions[level],
-          `\`\`\`\n${code}\n\`\`\``,
-        ].join("\n\n");
-
-        const tier: ModelTier = level === "detailed" ? "standard" : "fast";
-        const result = await runAIWithMetrics(env, tier, prompt, level === "detailed" ? 4096 : 2048);
+        const result = await runTask(env, "explainCode", { code, depth });
+        const tier: ModelTier = depth === "detailed" ? "standard" : "fast";
         logToolInvocation({ tool: "explainCode", tier, model: result.model, latency_ms: result.latency_ms });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
@@ -605,18 +566,7 @@ function createMcpServer(env: Env) {
     },
     async ({ code, style }) => {
       try {
-        const docStyle = style ?? "tsdoc";
-        const styleInstructions: Record<string, string> = {
-          jsdoc: "Add JSDoc comments (/** */) to all exported functions, classes, and interfaces. Include @param, @returns, and @example where appropriate.",
-          tsdoc: "Add TSDoc comments (/** */) to all exported functions, classes, and interfaces. Include @param, @returns, @remarks, and @example where appropriate. Use TSDoc-specific tags.",
-          inline: "Add concise inline comments (// ) above non-obvious logic. Do not comment self-evident code. Focus on why, not what.",
-        };
-        const prompt = [
-          `${styleInstructions[docStyle]} Return the full code with documentation added.`,
-          `\`\`\`\n${code}\n\`\`\``,
-        ].join("\n\n");
-
-        const result = await runAIWithMetrics(env, "standard", prompt, 8192);
+        const result = await runTask(env, "generateDocs", { code, style });
         logToolInvocation({ tool: "generateDocs", tier: "standard", model: result.model, latency_ms: result.latency_ms });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
@@ -639,12 +589,7 @@ function createMcpServer(env: Env) {
     },
     async ({ code }) => {
       try {
-        const prompt = [
-          "Generate TypeScript type definitions for this code. Infer interfaces, type aliases, and generics from usage patterns. Return only the typed version of the code.",
-          `\`\`\`\n${code}\n\`\`\``,
-        ].join("\n\n");
-
-        const result = await runAIWithMetrics(env, "standard", prompt, 8192);
+        const result = await runTask(env, "generateTypes", { code });
         logToolInvocation({ tool: "generateTypes", tier: "standard", model: result.model, latency_ms: result.latency_ms });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
@@ -668,13 +613,7 @@ function createMcpServer(env: Env) {
     },
     async ({ code, error }) => {
       try {
-        const prompt = [
-          "Fix the bug in this code. Return only the corrected code.",
-          `Error:\n${error}`,
-          `\`\`\`\n${code}\n\`\`\``,
-        ].join("\n\n");
-
-        const result = await runAIWithMetrics(env, "standard", prompt, 8192);
+        const result = await runTask(env, "fixBug", { code, error });
         logToolInvocation({ tool: "fixBug", tier: "standard", model: result.model, latency_ms: result.latency_ms });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
@@ -697,15 +636,7 @@ function createMcpServer(env: Env) {
     },
     async ({ diff }) => {
       try {
-        const prompt = [
-          "Generate a concise git commit message for this diff using conventional commits format (feat/fix/refactor/docs/test/chore).",
-          "Format: type(scope): description",
-          "Keep the first line under 72 characters. Add a blank line and body only if the change is non-trivial.",
-          "Return only the commit message, nothing else.",
-          `\`\`\`diff\n${diff}\n\`\`\``,
-        ].join("\n\n");
-
-        const result = await runAIWithMetrics(env, "fast", prompt, 1024);
+        const result = await runTask(env, "generateCommitMessage", { diff });
         logToolInvocation({ tool: "generateCommitMessage", tier: "fast", model: result.model, latency_ms: result.latency_ms });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
@@ -729,14 +660,7 @@ function createMcpServer(env: Env) {
     },
     async ({ description, bindings }) => {
       try {
-        const parts = [
-          "Generate a complete Cloudflare Worker in TypeScript with proper Env interface, fetch handler, and error handling.",
-          `Purpose: ${description}`,
-        ];
-        if (bindings) parts.push(`Bindings to include in the Env interface: ${bindings}`);
-        parts.push("Include the wrangler.toml snippet as a comment at the top. Return only the code.");
-
-        const result = await runAIWithMetrics(env, "standard", parts.join("\n\n"), 8192);
+        const result = await runTask(env, "generateWorkerBoilerplate", { description, bindings });
         logToolInvocation({ tool: "generateWorkerBoilerplate", tier: "standard", model: result.model, latency_ms: result.latency_ms });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
