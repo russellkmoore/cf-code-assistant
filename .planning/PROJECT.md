@@ -42,6 +42,8 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - ✓ **SEC-01**: Type safety cleanup — eliminated `as any` cast on dynamic model routing — v1.0 Phase 1
 - ✓ **SEC-02**: Tool input size validation (cap code/context length) — v1.0 Phase 1
 - ✓ **OBS-01**: Structured request/response logging with tool name, tier, model used, latency — v1.0 Phase 4
+- ✓ **BATCH-01**: Shared `runTask(env, kind, input)` executor + `TASK_SPECS` dispatch map — single source of truth for prompt/tier/maxTokens; all 11 AI-backed handlers delegate to it with byte-identical observable behavior — v2.0 Phase 5
+- ✓ **BATCH-02**: Byte-equality prompt-snapshot guard (`runtask.test.ts`, 37 tests) against prompt drift the AI-mocked suite is structurally blind to — v2.0 Phase 5
 
 ### Active
 
@@ -116,4 +118,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-25 after starting milestone v2.0 Concurrent Batch Fan-out*
+*Last updated: 2026-06-26 — Phase 5 complete (shared `runTask` executor extracted, BATCH-01/02 validated)*
