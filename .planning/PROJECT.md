@@ -49,6 +49,9 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - ✓ **BATCH-05**: Per-task timeout (default 45000ms = `AI_TIMEOUT_MS`, `BATCH_TASK_TIMEOUT_MS`) via settle-once two-handler `withTimeout` — a late-settling orphan causes no double-settle and no unhandled rejection — v2.0 Phase 6
 - ✓ **BATCH-06**: Order-preserving (index-write into a pre-sized array, never `push`) + failure-isolated partial results — one throwing task yields a `status:'error'` entry while siblings still return `status:'ok'` — v2.0 Phase 6
 - ✓ **Batch core**: pure, env-free, dependency-injected `src/batch.ts` (`executeBatch`/`mapWithConcurrency`/`withTimeout`/`readBatchConfig`) — fully unit-tested with a fake `runTask`, no `env` and no AI mock (8 tests, zero new deps) — v2.0 Phase 6
+- ✓ **BATCH-07**: Per-task result contract — each task returns `{id,index,kind,status:'ok',result,latency_ms}` or `{id,index,kind,status:'error',error,error_type,latency_ms}` with `error_type ∈ {timeout|validation|ai_error}` via `deriveErrorType`; per-task `input` is an open record validated per-kind inside `runTask`, so one bad task is a `status:'error'` entry not a rejected batch — v2.0 Phase 7
+- ✓ **BATCH-08**: Batch envelope (`total`, `succeeded`, `failed`, `failedIds`) + human-readable `summary` string alongside the order-preserving structured `results` — v2.0 Phase 7
+- ✓ **BATCH-09**: `code_assist_batch` registered in `createMcpServer` as the repo's first structured-output tool — declares Zod input + output schemas (`result: z.unknown()`, `as const` status literals), returns `structuredContent` + text `content` together, sets the four MCP annotations, and inherits the existing OAuth gate (8 new tests, suite 161 green) — v2.0 Phase 7
 
 ### Active
 
@@ -123,4 +126,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-26 — Phase 6 complete (pure batch core `src/batch.ts` shipped, BATCH-03..06 validated; 153 tests green). Next: Phase 7 — register `code_assist_batch` + result contract.*
+*Last updated: 2026-06-26 — Phase 7 complete (`code_assist_batch` registered as the repo's first structured-output tool; BATCH-07..09 validated; 161 tests green). Next: Phase 8 — verify end-to-end (MCP Inspector mixed batch).*
