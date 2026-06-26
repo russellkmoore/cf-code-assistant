@@ -106,11 +106,12 @@ Plans:
   3. The tool returns `structuredContent` AND a `content` text summary together, declares Zod input + output schemas (keeping `result: z.unknown()` and `as const` status literals), and sets annotations `readOnlyHint:false, destructiveHint:false, idempotentHint:false, openWorldHint:true`
   4. A unit test parses real `executeBatch` output (all-ok AND mixed) against the output schema and both pass; the tool inherits the existing OAuth gate by registering in the same `createMcpServer` (one-line wire)
 
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
+**Wave 1**
 
-- [ ] 07-01: TBD
+- [ ] 07-01-PLAN.md — Add batch schemas + deriveErrorType + runBatch enrichment, register code_assist_batch (structured-output tool, output schema + annotations), and batch-tool.test.ts (BATCH-07, BATCH-08, BATCH-09)
 
 ### Phase 8: Verify End-to-End
 
