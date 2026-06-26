@@ -20,6 +20,7 @@ byte-equality prompt-snapshot test the existing AI-mocked suite cannot provide.
 ## Phases
 
 **Phase Numbering:**
+
 - Integer phases (5, 6, 7, 8): Planned milestone work (continued from v1.0, which ended at Phase 4)
 - Decimal phases (6.1, 6.2): Urgent insertions (marked with INSERTED)
 
@@ -52,59 +53,79 @@ into "K executors × an N-wide cheap batch each," keeping Claude thin (orchestra
 ## Phase Details
 
 ### Phase 5: Extract Shared `runTask` Executor
+
 **Goal**: A single reusable `runTask(kind, input)` dispatch is the one source of truth for prompt + tier + maxTokens across both the single-task tools and the (future) batch tool — with observable behavior identical to today
 **Depends on**: Phase 4 (v1.0 shipped)
 **Requirements**: BATCH-01, BATCH-02
 **Success Criteria** (what must be TRUE):
+
   1. `runTask(kind, input)` exists as a `TASK_SPECS` dispatch map (kind → tier, maxTokens, buildPrompt); the 11 AI-backed handler heads call it while each handler's try/runAIWithMetrics/log/catch tail is unchanged (routingInfo, the static no-AI tool, is excluded)
   2. All 108 existing tests pass and `npx tsc --noEmit` is clean — `tool-handlers`, `observability`, and `input-validation` suites are green with no changes to their assertions
   3. A new `runtask.test.ts` asserts byte-identical `buildPrompt` output per kind (the only guard against prompt drift, which the AI-mocked suite cannot see) — covering at minimum generateCode, reviewCode, transformCode, explainCode
   4. `explainCode`'s depth-conditional routing is preserved (detailed → standard/4096, brief/eli5 → fast/2048) — modeled as a function of `input`, not a constant — and `transformCode`'s pre-AI 8KB byte cap still fires
+
 **Plans**: 2 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 05-01-PLAN.md — Extract TASK_SPECS dispatch map + runTask executor + ValidationError; delegate all 11 AI-backed handler heads (BATCH-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 05-02-PLAN.md — Add runtask.test.ts: byte-identical buildPrompt snapshots for all 11 kinds, explainCode resolve, transformCode 8KB cap (BATCH-02)
 
 ### Phase 6: Batch Core + Bounded Pool + Timeout
+
 **Goal**: A pure, importable batch engine runs tasks through a bounded worker pool with a per-call cap, a per-task timeout, order-preservation, and failure isolation — fully unit-testable with a fake `runTask`, no `env` and no AI mock
 **Depends on**: Phase 5 (the core's only real dependency is a working `runTask`)
 **Requirements**: BATCH-03, BATCH-04, BATCH-05, BATCH-06
 **Success Criteria** (what must be TRUE):
+
   1. Peak in-flight task count never exceeds the concurrency cap (default 6, `BATCH_CONCURRENCY`) — verified by an in-flight counter test using a deferred/never-resolving mock; never a naive `Promise.all` over the task array
   2. A batch with more than the per-call cap (default 50, `BATCH_MAX_TASKS`) is rejected fast with an actionable "split it" message before any task dispatches — a spy asserts zero `runTask` calls
   3. Results are order-preserving by index (verified with inverted durations: task 0 slow, task N fast → `results[i].index === i`) and failure-isolated (one throwing task yields one `status:'error'` entry while siblings still return `status:'ok'`) — index-write into a pre-sized array, never `push`
   4. A task exceeding the per-task timeout (default 45000ms = `AI_TIMEOUT_MS`, `BATCH_TASK_TIMEOUT_MS`) returns a `status:'error'` entry without hanging the batch; a mock that resolves *after* the timeout produces no double-settle and no unhandled rejection — `withTimeout` keeps the settle-once + two-handler `.then(onResolve, onReject)` form
+
 **Plans**: TBD
 
 Plans:
+
 - [ ] 06-01: TBD
 
 ### Phase 7: Register `code_assist_batch` + Result Contract
+
 **Goal**: `code_assist_batch` is wired into `createMcpServer` as the repo's first structured-output tool, returning an order-preserving partial-results contract that parses against its declared output schema
 **Depends on**: Phase 6 (registration needs `executeBatch`) and Phase 5 (needs `runTask`)
 **Requirements**: BATCH-07, BATCH-08, BATCH-09
 **Success Criteria** (what must be TRUE):
+
   1. Each task returns independently as `{id, index, kind, status:'ok', result, latency_ms}` or `{id, index, kind, status:'error', error, error_type, latency_ms}` where `error_type` is one of `timeout | validation | ai_error`; per-task `input` is an open record validated per-kind *inside* `runTask` (not a discriminated union at the MCP boundary, which would reject the whole batch on one bad task)
   2. The batch returns a summary with `total`, `succeeded`, `failed`, and `failedIds`, plus a short human-readable text block alongside the structured results
   3. The tool returns `structuredContent` AND a `content` text summary together, declares Zod input + output schemas (keeping `result: z.unknown()` and `as const` status literals), and sets annotations `readOnlyHint:false, destructiveHint:false, idempotentHint:false, openWorldHint:true`
   4. A unit test parses real `executeBatch` output (all-ok AND mixed) against the output schema and both pass; the tool inherits the existing OAuth gate by registering in the same `createMcpServer` (one-line wire)
+
 **Plans**: TBD
 
 Plans:
+
 - [ ] 07-01: TBD
 
 ### Phase 8: Verify End-to-End
+
 **Goal**: The whole seam is proven end-to-end through the real `createMcpServer` — order-preserving partial results and the timeout path both demonstrated, with the single-task tools and build untouched
 **Depends on**: Phase 7
 **Requirements**: BATCH-10
 **Success Criteria** (what must be TRUE):
+
   1. `npm run build` is clean and the full suite (108 existing + new runtask/batch-core/batch-tool tests) is green
   2. An MCP Inspector run (`npx @modelcontextprotocol/inspector`) of a mixed batch — a normal task, a deliberately failing task, and a deliberately slow/timeout task — returns order-preserving partial results: the failing task is a `status:'error'` entry, the timeout task hits the timeout path, and the normal task is `status:'ok'`, all in input order
   3. Inspector confirms the response renders both `structuredContent` and the text summary; the single-task tools still pass their existing tests, demonstrating the refactor stayed behavior-preserving end-to-end
+
 **Plans**: TBD
 
 Plans:
+
 - [ ] 08-01: TBD
 
 ## Progress
