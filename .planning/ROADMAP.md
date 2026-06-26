@@ -87,11 +87,12 @@ Plans:
   3. Results are order-preserving by index (verified with inverted durations: task 0 slow, task N fast → `results[i].index === i`) and failure-isolated (one throwing task yields one `status:'error'` entry while siblings still return `status:'ok'`) — index-write into a pre-sized array, never `push`
   4. A task exceeding the per-task timeout (default 45000ms = `AI_TIMEOUT_MS`, `BATCH_TASK_TIMEOUT_MS`) returns a `status:'error'` entry without hanging the batch; a mock that resolves *after* the timeout produces no double-settle and no unhandled rejection — `withTimeout` keeps the settle-once + two-handler `.then(onResolve, onReject)` form
 
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
+**Wave 1**
 
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md — Pure env-free batch engine (src/batch.ts: executeBatch / mapWithConcurrency / withTimeout / readBatchConfig) + four headline tests in src/__tests__/batch.test.ts (BATCH-03, BATCH-04, BATCH-05, BATCH-06)
 
 ### Phase 7: Register `code_assist_batch` + Result Contract
 
