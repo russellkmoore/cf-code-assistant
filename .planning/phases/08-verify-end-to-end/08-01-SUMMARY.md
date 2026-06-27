@@ -69,7 +69,7 @@ Note: Tasks 1 and 2 were implemented together in the same file and committed ato
 | failedIds in input order, summary reflects "1/3" and "2 failed" | PASS | `sc.failedIds === ['timeout-task', 'validate-task']`, summary contains "1/3" and "2 failed" |
 | describe.skip opt-in block excluded from default npm test | PASS | 1 skipped in test run output |
 | src/index.ts, src/batch.ts, package.json, wrangler.toml not modified | PASS | `git diff HEAD~1 HEAD` shows only batch-e2e.test.ts |
-| npm test exits 0 (full suite green) | PASS | 323 passed, 1 skipped (the describe.skip block) |
+| npm test exits 0 (full suite green) | PASS | 162 passed, 1 skipped (the describe.skip block) |
 
 ## Verification Output
 
@@ -83,11 +83,11 @@ Test Files  1 passed (1)
 ### npm test (full suite)
 ```
 Test Files  23 passed (23)
-     Tests  323 passed | 1 skipped (324)
+     Tests  162 passed | 1 skipped (163)
   Duration  2.80s
 ```
 
-Previous baseline: 322 tests. New: 323 passing + 1 skipped = +1 passing (committed fast e2e) +1 skipped (opt-in block).
+Previous baseline: 161 tests. New: 162 passing + 1 skipped = +1 passing (committed fast e2e) +1 skipped (opt-in block). [corrected: an earlier run double-counted via an orphaned worktree]
 
 ## Deviations from Plan
 
@@ -122,7 +122,7 @@ FOUND: describe.skip — grep -F 'describe.skip' match confirmed
 FOUND: _registeredTools["code_assist_batch"] — pattern present
 FOUND: BatchOutputSchema.parse — pattern present  
 FOUND: BATCH_TASK_TIMEOUT_MS — pattern present
-FOUND: npm test — 323 passed, 1 skipped — green
+FOUND: npm test — 162 passed, 1 skipped — green
 FOUND: src/index.ts — not in commit (git diff HEAD~1 HEAD confirms)
 FOUND: src/batch.ts — not in commit (git diff HEAD~1 HEAD confirms)
 FOUND: package.json — not in commit (pre-existing working tree changes, out of scope)
