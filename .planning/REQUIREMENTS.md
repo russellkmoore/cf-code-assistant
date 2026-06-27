@@ -34,7 +34,7 @@ concurrently to Workers AI, reusing the existing per-kind executor.
 
 ### End-to-End Verification
 
-- [ ] **BATCH-10**: A mixed batch (a normal task, a deliberately failing task, and a deliberately slow/timeout task) returns correct order-preserving partial results end-to-end, demonstrated via MCP Inspector, with the single-task tools still passing their existing tests and a clean `npm run build`
+- [x] **BATCH-10**: A mixed batch (a normal task, a deliberately failing task, and a deliberately slow/timeout task) returns correct order-preserving partial results end-to-end, demonstrated via MCP Inspector, with the single-task tools still passing their existing tests and a clean `npm run build`
 
 ## Future Requirements
 
