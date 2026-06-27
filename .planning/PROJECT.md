@@ -52,6 +52,7 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - ✓ **BATCH-07**: Per-task result contract — each task returns `{id,index,kind,status:'ok',result,latency_ms}` or `{id,index,kind,status:'error',error,error_type,latency_ms}` with `error_type ∈ {timeout|validation|ai_error}` via `deriveErrorType`; per-task `input` is an open record validated per-kind inside `runTask`, so one bad task is a `status:'error'` entry not a rejected batch — v2.0 Phase 7
 - ✓ **BATCH-08**: Batch envelope (`total`, `succeeded`, `failed`, `failedIds`) + human-readable `summary` string alongside the order-preserving structured `results` — v2.0 Phase 7
 - ✓ **BATCH-09**: `code_assist_batch` registered in `createMcpServer` as the repo's first structured-output tool — declares Zod input + output schemas (`result: z.unknown()`, `as const` status literals), returns `structuredContent` + text `content` together, sets the four MCP annotations, and inherits the existing OAuth gate (8 new tests, suite 161 green) — v2.0 Phase 7
+- ✓ **BATCH-10**: End-to-end seam proven through the real `createMcpServer` — a mixed 3-task batch (ok + validation-fail + deterministic timeout) returns order-preserving partial results (`results[i].index === i`) with all three `status`/`error_type` outcomes, `BatchOutputSchema.parse(structuredContent)` clean, and a `describe.skip` opt-in 45s real-wait race block; single-task tools untouched (1 new test, suite 162 green) — v2.0 Phase 8
 
 ### Active
 
@@ -126,4 +127,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-26 — Phase 7 complete (`code_assist_batch` registered as the repo's first structured-output tool; BATCH-07..09 validated; 161 tests green). Next: Phase 8 — verify end-to-end (MCP Inspector mixed batch).*
+*Last updated: 2026-06-27 — Phase 8 complete; **milestone v2.0 Concurrent Batch Fan-out complete** (BATCH-01..10 all validated; the `code_assist_batch` seam is proven end-to-end through the real `createMcpServer` with order-preserving partial results; 162 tests green, single-task tools behavior-preserving). Next: `/gsd:complete-milestone` to archive v2.0.*
