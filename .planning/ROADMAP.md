@@ -124,11 +124,12 @@ Plans:
   2. An MCP Inspector run (`npx @modelcontextprotocol/inspector`) of a mixed batch — a normal task, a deliberately failing task, and a deliberately slow/timeout task — returns order-preserving partial results: the failing task is a `status:'error'` entry, the timeout task hits the timeout path, and the normal task is `status:'ok'`, all in input order
   3. Inspector confirms the response renders both `structuredContent` and the text summary; the single-task tools still pass their existing tests, demonstrating the refactor stayed behavior-preserving end-to-end
 
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
+**Wave 1**
 
-- [ ] 08-01: TBD
+- [ ] 08-01-PLAN.md — Add src/__tests__/batch-e2e.test.ts: committed fast 3-task mixed-batch e2e (ok+validation+timeout, order-preserving) through real createMcpServer + describe.skip real-45s-wait opt-in block + build gate (BATCH-10)
 
 ## Progress
 
