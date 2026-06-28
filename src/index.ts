@@ -12,6 +12,7 @@ type ModelTier = "fast" | "standard";
 
 const ALLOWED_MODELS = [
   "@cf/qwen/qwen3-30b-a3b-fp8",
+  "@cf/moonshotai/kimi-k2.5",
 ] as const satisfies ReadonlyArray<keyof AiModels>;
 
 type AllowedModel = (typeof ALLOWED_MODELS)[number];
@@ -22,7 +23,7 @@ function isAllowedModel(model: string): model is AllowedModel {
 
 const DEFAULT_MODELS: Record<ModelTier, keyof AiModels> = {
   fast: "@cf/qwen/qwen3-30b-a3b-fp8",
-  standard: "@cf/qwen/qwen3-30b-a3b-fp8",
+  standard: "@cf/moonshotai/kimi-k2.5",
 };
 
 const AI_TIMEOUT_MS = 45_000;
