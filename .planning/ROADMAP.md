@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 Production Hardening** - Phases 0-4 (shipped: security, error handling, 108 tests / 95.5% coverage, structured logging)
-- 🚧 **v2.0 Concurrent Batch Fan-out** - Phases 5-8 (in progress)
+- 🚧 **v2.0 Concurrent Batch Fan-out** - Phases 5-10 (in progress; reopened to resolve deferred BATCH-F01/F03 + add model selection)
 
 ## Overview
 
@@ -134,7 +134,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 5 → 6 → 7 → 8 (dependency-forced; do not reorder)
+Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 (dependency-forced; do not reorder)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -147,3 +147,25 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 (dependency-forced; do not 
 | 6. Batch Core + Bounded Pool + Timeout | v2.0 | 1/1 | Complete   | 2026-06-26 |
 | 7. Register `code_assist_batch` + Result Contract | v2.0 | 1/1 | Complete   | 2026-06-26 |
 | 8. Verify End-to-End | v2.0 | 1/1 | Complete   | 2026-06-27 |
+| 9. Second model and tier split | v2.0 | 0/0 | Not planned | — |
+| 10. Batch per-task cancellation and tier override | v2.0 | 0/0 | Not planned | — |
+
+### Phase 9: Second model and tier split
+
+**Goal:** Make the dormant two-tier routing real — the `standard` tier resolves to a Kimi coding model (`@cf/moonshotai/kimi-k2.7-code`, or `kimi-k2.5` fallback) while `fast` stays on qwen3-30b. Behavior-shape preserving (same prompts/parsing); only the model behind `standard` changes. Enables Phase 10's per-task tier override.
+**Requirements**: MODEL-03 (model selection — to be formalized in REQUIREMENTS.md during planning); enables BATCH-F03
+**Depends on:** Phase 8
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 9 to break down)
+
+### Phase 10: Batch per-task cancellation and tier override
+
+**Goal:** Resolve the two deferred batch requirements — BATCH-F01 (thread a real `AbortSignal` into `env.AI.run` so a timed-out batch task actually cancels instead of best-effort racing) and BATCH-F03 (tier-only per-task override in the batch input, reusing the allowlist/KV abstraction — no raw model strings at the MCP boundary). Single-task tools stay behavior-identical.
+**Requirements**: BATCH-F01, BATCH-F03 (promoted from REQUIREMENTS.md Future Requirements)
+**Depends on:** Phase 9 (F03's override is only meaningful once the two tiers resolve to different models)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 10 to break down)

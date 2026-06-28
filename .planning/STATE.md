@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Concurrent Batch Fan-out
-status: milestone_complete
-stopped_at: Milestone complete (Phase 08 was final phase)
-last_updated: 2026-06-27T15:26:10.770Z
-last_activity: 2026-06-27 -- Phase 08 execution started
+status: in_progress
+stopped_at: v2.0 reopened — Phases 9 (model + tier split) & 10 (BATCH-F01/F03) added; awaiting plan-phase
+last_updated: 2026-06-27
+last_activity: 2026-06-27 -- v2.0 reopened; Phases 9 & 10 added to resolve deferred BATCH-F01/F03 + model selection
 progress:
-  total_phases: 4
+  total_phases: 6
   completed_phases: 4
   total_plans: 5
   completed_plans: 5
-  percent: 100
+  percent: 67
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25)
 
 **Core value:** Reduce Claude API token costs on mechanical code tasks without sacrificing output quality
-**Current focus:** Milestone complete
+**Current focus:** v2.0 reopened — Phases 9 & 10 (model selection + batch cancellation/override)
 
 ## Current Position
 
-Phase: 08
-Plan: Not started
-Status: Milestone complete
+Phase: 09
+Plan: Not planned yet
+Status: Reopened — Phases 9 & 10 added, awaiting /gsd:plan-phase 9
 Last activity: 2026-06-27
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 67%
 
 ## Performance Metrics
 
@@ -72,6 +72,12 @@ Recent decisions affecting current work (v2.0):
 - Per-call task cap 50 (one subrequest per task) — safe on free (50) and paid (1000) plans
 - Partial-results contract (status per task) — one failure/timeout is a result entry, not a thrown batch
 - Prefer zero new deps — ~18-line inline pool; do NOT add p-limit; pin zod for the milestone
+
+### Roadmap Evolution
+
+- v2.0 reopened 2026-06-27 (was milestone_complete) to absorb deferred batch reqs + model selection discovered in the June 2026 Workers AI model review.
+- Phase 9 added: Second model and tier split — `standard` tier → Kimi coding model, `fast` stays qwen3 (enables per-task tier override).
+- Phase 10 added: Batch per-task cancellation and tier override — resolves BATCH-F01 (real AbortSignal into `env.AI.run`) and BATCH-F03 (tier-only per-task override). Depends on Phase 9.
 
 ### Pending Todos
 
