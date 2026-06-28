@@ -4,7 +4,9 @@ Cloudflare Workers MCP server that offloads mechanical code generation from Clau
 
 ## Architecture
 
-- **Single file**: `src/index.ts` — all tools, auth handler, and wiring
+- **Server core**: `src/index.ts` — all tool registrations, auth handler, model routing, and wiring
+- **Shared executor**: `runTask(env, kind, input)` + `TASK_SPECS` dispatch map — single source of truth for prompt/tier/maxTokens, shared by single-task tools and the batch tool
+- **Batch engine**: `src/batch.ts` — pure, env-free `executeBatch` / `mapWithConcurrency` / `withTimeout` / `readBatchConfig` (bounded concurrency, per-task timeout, order-preserving partial results)
 - **Stateless MCP** via `createMcpHandler` from `agents/mcp` (no Durable Objects)
 - **OAuth 2.1** via `@cloudflare/workers-oauth-provider` with self-contained PIN auth
 - **Two-tier model routing**: `fast` and `standard` tiers, configurable via KV keys `config:model:fast` / `config:model:standard`
@@ -12,7 +14,9 @@ Cloudflare Workers MCP server that offloads mechanical code generation from Clau
 
 ## Key Files
 
-- `src/index.ts` — MCP server, 12 tools, auth handler, model routing
+- `src/index.ts` — MCP server, 13 tools, auth handler, model routing, `runTask` executor
+- `src/batch.ts` — pure batch engine (concurrency pool, timeout, partial-results contract)
+- `src/logger.ts` — structured JSON logging helpers
 - `wrangler.toml` — Worker config with AI binding and KV namespace
 - `.planning/` — GSD project planning (roadmap, requirements, research, codebase map)
 
@@ -50,6 +54,17 @@ server.registerTool(
 | `fast` | `config:model:fast` | `@cf/qwen/qwen3-30b-a3b-fp8` | quickTask, explainCode (brief/eli5), generateCommitMessage |
 | `standard` | `config:model:standard` | `@cf/qwen/qwen3-30b-a3b-fp8` | generateCode, reviewCode, transformCode, scaffoldTests, explainCode (detailed), generateDocs, generateTypes, fixBug, generateWorkerBoilerplate |
 
+## Batch Tool
+
+`code_assist_batch` (the 13th tool, added in v2.0) fans an array of bounded tasks out to the
+shared `runTask` executor with bounded concurrency. It is the repo's only structured-output
+tool: it declares Zod input + output schemas and returns `structuredContent` plus a text summary.
+
+- **Bounded pool**: default 6 in flight, env `BATCH_CONCURRENCY` — never `Promise.all` over all tasks
+- **Per-call cap**: default 50, env `BATCH_MAX_TASKS` — over-cap batches fast-reject before any dispatch
+- **Per-task timeout**: default 45000ms (= `AI_TIMEOUT_MS`), env `BATCH_TASK_TIMEOUT_MS` — race + best-effort abort
+- **Partial-results contract**: each task returns `{id, index, kind, status:'ok'|'error', ...}`; one slow or failing task never stalls or aborts siblings; results are order-preserving by index
+
 ## Auth Flow
 
 OAuth 2.1 with `OAuthProvider` wrapping the MCP handler. Auth handler at `/authorize` renders a PIN login page. The `MCP_SECRET` worker secret is the PIN. CSRF tokens stored in `OAUTH_KV` with 5-minute TTL.
@@ -69,19 +84,18 @@ OAuth 2.1 with `OAuthProvider` wrapping the MCP handler. Auth handler at `/autho
 - New McpServer instance per request (required by MCP SDK 1.26.0 CVE fix)
 - `env` passed to tools via closure over `createMcpServer(env)`
 
-## Current Hardening Roadmap
+## Roadmap Status
 
-See `.planning/ROADMAP.md` for the full 5-phase plan. In order:
-1. Phase 0 — Repository foundation (done: git init, .gitignore)
-2. Phase 1 — Security hardening (CVE fix, rate limiting, input validation)
-3. Phase 2 — Error handling (retry logic, graceful degradation)
-4. Phase 3 — Test infrastructure (vitest, mocks, coverage)
-5. Phase 4 — Observability (structured logging, AI Gateway)
+See `.planning/ROADMAP.md` for full detail.
+
+- ✅ **v1.0 Production Hardening** (Phases 0–4) — shipped: git baseline, security hardening (type-safe routing, input caps, auth rate limiting), error handling (AI timeouts, KV fallback, structured errors), test infrastructure (vitest + Workers pool), structured logging.
+- ✅ **v2.0 Concurrent Batch Fan-out** (Phases 5–8) — complete: shared `runTask` executor, pure batch engine, `code_assist_batch` tool, end-to-end verification. 162 tests green.
 
 ## Known Issues
 
-- `as any` cast on dynamic model name in `callModel()` — tracked as SEC-01
-- No input size limits on tool parameters — tracked as SEC-02
-- `timingSafeEqual` leaks secret length via early return — fix planned in Phase 1
-- Zero test coverage — Phase 3
-- No structured logging — Phase 4
+None currently tracked. The v1.0 hardening issues (`as any` model cast, missing input caps,
+`timingSafeEqual` length leak, zero test coverage, no structured logging) were all resolved in
+the v1.0 milestone — see `.planning/PROJECT.md` Validated requirements (SEC-01/02, HARD-*, TEST-*, OBS-01).
+
+Deferred to a future milestone (tracked in `.planning/REQUIREMENTS.md` Future Requirements):
+true per-task cancellation (BATCH-F01), internal per-task retry (BATCH-F02), per-task model/tier override (BATCH-F03).

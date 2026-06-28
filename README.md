@@ -41,8 +41,11 @@ The key insight: qwen3 has no MCP access of its own. Claude is its only source o
 | `generateCommitMessage` | fast | Write a commit message from a diff |
 | `generateWorkerBoilerplate` | standard | Scaffold Cloudflare Worker boilerplate |
 | `routingInfo` | — | Returns model tier info (no AI call) |
+| `code_assist_batch` | per-task | Fan many bounded tasks out concurrently, one call, order-preserving partial results |
 
 **Tiers:** `fast` uses the lightweight model for quick tasks. `standard` uses the full model for generation work. Both are configurable via KV at runtime — no redeploy needed.
+
+**Batch fan-out:** `code_assist_batch` runs an array of independent tasks through the shared executor with bounded concurrency (default 6, `BATCH_CONCURRENCY`), a per-call cap (default 50, `BATCH_MAX_TASKS`), and a per-task timeout (default 45s, `BATCH_TASK_TIMEOUT_MS`). Each task returns `{id, index, kind, status:'ok'|'error', ...}` independently — one slow or failing task never stalls or aborts the rest. Use it to fan out independent leaf work (test generation, scaffolding, transforms) instead of issuing N sequential calls.
 
 ## Setup
 
@@ -60,7 +63,7 @@ Then add the MCP server URL to `~/.claude/settings.json` and authorize via brows
 
 ## Architecture
 
-- **Single file server** — all tools, auth, and routing in `src/index.ts`
+- **Compact server** — tool registrations, auth, and routing in `src/index.ts`; pure batch engine in `src/batch.ts`; structured logging in `src/logger.ts`
 - **Stateless MCP** via `createMcpHandler` from `agents/mcp` (no Durable Objects)
 - **OAuth 2.1** with self-contained PIN auth flow via `@cloudflare/workers-oauth-provider`
 - **Two-tier model routing** — `fast` and `standard` tiers, hot-swappable via KV
@@ -98,7 +101,7 @@ npm run dev          # Local dev server (AI calls hit remote — incurs charges)
 npm run deploy       # Deploy to Cloudflare (handles KV setup automatically)
 npm run types        # Regenerate worker-configuration.d.ts
 npx tsc --noEmit     # Type-check
-npm test             # Run tests (108 tests across 8 suites)
+npm test             # Run tests (162 tests)
 ```
 
 ## Security
