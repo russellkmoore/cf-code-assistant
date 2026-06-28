@@ -147,7 +147,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 (dependency-fo
 | 6. Batch Core + Bounded Pool + Timeout | v2.0 | 1/1 | Complete   | 2026-06-26 |
 | 7. Register `code_assist_batch` + Result Contract | v2.0 | 1/1 | Complete   | 2026-06-26 |
 | 8. Verify End-to-End | v2.0 | 1/1 | Complete   | 2026-06-27 |
-| 9. Second model and tier split | v2.0 | 0/1 | Planned | — |
+| 9. Second model and tier split | v2.0 | 1/1 | Complete   | 2026-06-28 |
 | 10. Batch per-task cancellation and tier override | v2.0 | 0/0 | Not planned | — |
 
 ### Phase 9: Second model and tier split
@@ -155,12 +155,12 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 (dependency-fo
 **Goal:** Make the dormant two-tier routing real — the `standard` tier resolves to a Kimi coding model (`@cf/moonshotai/kimi-k2.7-code`, or `kimi-k2.5` fallback) while `fast` stays on qwen3-30b. Behavior-shape preserving (same prompts/parsing); only the model behind `standard` changes. Enables Phase 10's per-task tier override.
 **Requirements**: MODEL-03 (model selection); enables BATCH-F03
 **Depends on:** Phase 8
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — Types gate + Kimi-id decision, ALLOWED_MODELS/DEFAULT_MODELS standard→Kimi, model-routing tests, Model Tiers docs (MODEL-03)
+- [x] 09-01-PLAN.md — Types gate + Kimi-id decision, ALLOWED_MODELS/DEFAULT_MODELS standard→Kimi, model-routing tests, Model Tiers docs (MODEL-03)
 
 ### Phase 10: Batch per-task cancellation and tier override
 
