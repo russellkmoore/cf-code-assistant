@@ -36,6 +36,10 @@ concurrently to Workers AI, reusing the existing per-kind executor.
 
 - [x] **BATCH-10**: A mixed batch (a normal task, a deliberately failing task, and a deliberately slow/timeout task) returns correct order-preserving partial results end-to-end, demonstrated via MCP Inspector, with the single-task tools still passing their existing tests and a clean `npm run build`
 
+### Model Selection (v2.0 extension — added 2026-06-27 when v2.0 reopened)
+
+- [ ] **MODEL-03**: The `standard` model tier resolves to a Kimi coding-optimized model (`@cf/moonshotai/kimi-k2.7-code`, or `@cf/moonshotai/kimi-k2.5` if the former is not yet a key of the account's generated `AiModels` type) while `fast` stays on `@cf/qwen/qwen3-30b-a3b-fp8`. The chosen Kimi id is added to `ALLOWED_MODELS` (allowlist + KV self-healing preserved). Tier **names** and every per-kind `resolve()` output are unchanged — only the model behind `standard` changes — so behavior shape, prompts/response parsing, and the existing tier/observability test assertions are preserved. Enables BATCH-F03 (per-task tier override is only meaningful once the two tiers resolve to different models).
+
 ## Future Requirements
 
 Deferred to a later milestone. Tracked, not in this roadmap.
@@ -78,12 +82,17 @@ duplicates.
 | BATCH-08 | Phase 7 | Planned |
 | BATCH-09 | Phase 7 | Planned |
 | BATCH-10 | Phase 8 | Planned |
+| MODEL-03 | Phase 9 | Planned |
+| BATCH-F01 | Phase 10 | Planned (promoted from Future) |
+| BATCH-F03 | Phase 10 | Planned (promoted from Future, narrowed to tier-only) |
 
 **Coverage:**
-- v2.0 requirements: 10 total
-- Mapped to phases: 10 ✓ (confirmed)
+- v2.0 requirements: 13 total (10 BATCH + 1 MODEL + 2 promoted from Future)
+- Mapped to phases: 13 ✓ (confirmed)
 - Unmapped: 0 ✓
 - Duplicated: 0 ✓
+
+> **Reopening note (2026-06-27):** v2.0 was reopened after the June 2026 Workers AI model review. BATCH-F03's earlier "Out of Scope — Model-tier config" framing is superseded for the **tier-only** override (no raw model strings at the MCP boundary); a raw per-task model override remains out of scope. BATCH-F01 promoted from Future now that `env.AI.run`'s `AiOptions` is confirmed to accept `signal?: AbortSignal`.
 
 ---
 *Requirements defined: 2026-06-26*

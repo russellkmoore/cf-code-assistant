@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Concurrent Batch Fan-out
 status: in_progress
-stopped_at: v2.0 reopened — Phases 9 (model + tier split) & 10 (BATCH-F01/F03) added; awaiting plan-phase
+stopped_at: Phase 9 planned (09-01, plan-checker PASSED); ready for /gsd:execute-phase 9
 last_updated: 2026-06-27
-last_activity: 2026-06-27 -- v2.0 reopened; Phases 9 & 10 added to resolve deferred BATCH-F01/F03 + model selection
+last_activity: 2026-06-27 -- Phase 9 planned (09-01); MODEL-03 formalized
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 5
+  total_plans: 6
   completed_plans: 5
   percent: 67
 ---
