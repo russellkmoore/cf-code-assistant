@@ -12,7 +12,7 @@ Every `generateCode`, `scaffoldTests`, or `transformCode` call that doesn't need
 Claude Code ──MCP──▶ cf-code-assistant (Cloudflare Worker)
                           │
                           ▼
-                     Workers AI (qwen3-30b)
+                     Workers AI (qwen3-30b / kimi-k2.5)
                           │
                           ▼
                      Generated code ──MCP──▶ back to Claude
@@ -43,7 +43,7 @@ The key insight: qwen3 has no MCP access of its own. Claude is its only source o
 | `routingInfo` | — | Returns model tier info (no AI call) |
 | `code_assist_batch` | per-task | Fan many bounded tasks out concurrently, one call, order-preserving partial results |
 
-**Tiers:** `fast` uses the lightweight model for quick tasks. `standard` uses the full model for generation work. Both are configurable via KV at runtime — no redeploy needed.
+**Tiers:** `fast` uses `@cf/qwen/qwen3-30b-a3b-fp8` — a lightweight model for quick tasks. `standard` uses `@cf/moonshotai/kimi-k2.5` — a Kimi coding-optimized model for generation and review work. Both are configurable via KV at runtime — no redeploy needed.
 
 **Batch fan-out:** `code_assist_batch` runs an array of independent tasks through the shared executor with bounded concurrency (default 6, `BATCH_CONCURRENCY`), a per-call cap (default 50, `BATCH_MAX_TASKS`), and a per-task timeout (default 45s, `BATCH_TASK_TIMEOUT_MS`). Each task returns `{id, index, kind, status:'ok'|'error', ...}` independently — one slow or failing task never stalls or aborts the rest. Use it to fan out independent leaf work (test generation, scaffolding, transforms) instead of issuing N sequential calls.
 
