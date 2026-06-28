@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TASK_SPECS, runTask, createMcpServer } from "../index";
+import { TASK_SPECS, runTask, createMcpServer, DEFAULT_MODELS } from "../index";
 import type { TaskKind } from "../index";
 import { createMockEnv } from "./helpers";
 
@@ -299,7 +299,7 @@ describe("BATCH-01: runTask wiring", () => {
     const env = createMockEnv({ aiResponse: "mock AI output" });
     const result = await runTask(env, "generateCode" as TaskKind, { prompt: "hi" });
     expect(result.text).toBe("mock AI output");
-    expect(result.model).toBe("@cf/qwen/qwen3-30b-a3b-fp8");
+    expect(result.model).toBe(DEFAULT_MODELS.standard);
     expect(typeof result.latency_ms).toBe("number");
   });
 
