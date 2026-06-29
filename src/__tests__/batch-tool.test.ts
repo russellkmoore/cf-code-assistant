@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { executeBatch } from "../batch";
 import type { BatchTask, BatchConfig, RunTask } from "../batch";
-import { BatchOutputSchema, deriveErrorType, createMcpServer } from "../index";
+import { BatchOutputSchema, deriveErrorType, createMcpServer, BatchTaskInputSchema, runTask, DEFAULT_MODELS } from "../index";
 import { createMockEnv } from "./helpers";
 
 // ---------------------------------------------------------------------------
@@ -196,6 +196,54 @@ describe("BATCH-08: summary contract", () => {
     expect(enrichedMixed.summary).toContain("1 failed");
     expect(enrichedMixed.summary).toContain("b");
   });
+});
+
+// ---------------------------------------------------------------------------
+// BATCH-F03: tier override + schema
+// ---------------------------------------------------------------------------
+
+describe("BATCH-F03: tier override + schema", () => {
+
+  it("BatchTaskInputSchema accepts tier:'fast' and tier:'standard' (schema)", () => {
+    expect(
+      BatchTaskInputSchema.safeParse({ kind: "generateCode", input: {}, tier: "fast" }).success
+    ).toBe(true);
+    expect(
+      BatchTaskInputSchema.safeParse({ kind: "generateCode", input: {}, tier: "standard" }).success
+    ).toBe(true);
+  });
+
+  it("BatchTaskInputSchema rejects tier:'premium' and other non-allowlisted strings (schema)", () => {
+    expect(
+      BatchTaskInputSchema.safeParse({ kind: "generateCode", input: {}, tier: "premium" }).success
+    ).toBe(false);
+    expect(
+      BatchTaskInputSchema.safeParse({ kind: "generateCode", input: {}, tier: "turbo" }).success
+    ).toBe(false);
+  });
+
+  it("batch task tier:'fast' flows through executeBatch + adapter to the fast model (tier)", async () => {
+    const env = createMockEnv({ aiResponse: "fast batch output" });
+
+    // Mirror the runBatch adapter from src/index.ts
+    const adapter = (batchTask: import("../batch").BatchTask, signal: AbortSignal) =>
+      runTask(env, batchTask.kind, batchTask.input, { tier: batchTask.tier, signal });
+
+    const tasks: import("../batch").BatchTask[] = [
+      { id: "t0", kind: "generateCode", tier: "fast", input: { prompt: "hello" } },
+    ];
+
+    const raw = await executeBatch(tasks, stdCfg, adapter);
+
+    expect(raw.total).toBe(1);
+    expect(raw.succeeded).toBe(1);
+    expect(raw.results[0].status).toBe("ok");
+
+    // The AIResult contains the model; assert it's the fast model
+    const aiResult = (raw.results[0] as any).result as { text: string; model: string; latency_ms: number };
+    expect(aiResult.model).toBe(DEFAULT_MODELS.fast);
+  });
+
 });
 
 // ---------------------------------------------------------------------------

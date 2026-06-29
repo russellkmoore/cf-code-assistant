@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createMcpServer } from "../index";
+import { createMcpServer, runTask } from "../index";
 import { createMockEnv } from "./helpers";
 
 // WARNING: Accesses SDK internals (_registeredTools). If this breaks after an SDK update,
@@ -182,5 +182,46 @@ describe("TEST-03: routingInfo (no AI call)", () => {
     expect(result.content[0].type).toBe("text");
     expect(result.content[0].text).toContain("Tool Routing Guide");
     expect(env.AI.run).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BATCH-F01: AbortSignal threading
+// ---------------------------------------------------------------------------
+
+describe("BATCH-F01: AbortSignal threading", () => {
+  it("passes an AbortSignal as the 3rd arg to env.AI.run (signal)", async () => {
+    const env = createMockEnv({ aiResponse: "mock output" });
+    // runTask goes through callModel which passes { signal: controller.signal } as 3rd arg
+    await runTask(env, "quickTask", { instruction: "test signal threading" });
+    const calls = (env.AI.run as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls.length).toBeGreaterThanOrEqual(1);
+    const thirdArg = calls[0][2];
+    expect(thirdArg?.signal instanceof AbortSignal).toBe(true);
+  });
+
+  it("rejects when a pre-aborted external signal is threaded through runTask (abort)", async () => {
+    // Build a custom env with a signal-honoring AI mock
+    const signalHonoringAI = {
+      run: vi.fn(async (_model: unknown, _body: unknown, opts?: { signal?: AbortSignal }) => {
+        if (opts?.signal?.aborted) {
+          throw new Error("AI_ABORTED");
+        }
+        return { response: "should not reach here" };
+      }),
+    };
+    const env = {
+      OAUTH_KV: { get: vi.fn(async () => null), put: vi.fn(), delete: vi.fn(), list: vi.fn(), getWithMetadata: vi.fn() },
+      AI: signalHonoringAI,
+      MCP_SECRET: "test-secret",
+      AUTH_RATE_LIMITER: { limit: vi.fn(async () => ({ success: true })) },
+    } as unknown as Env;
+
+    const controller = new AbortController();
+    controller.abort(); // pre-aborted before dispatch
+
+    await expect(
+      runTask(env, "quickTask", { instruction: "will be aborted" }, { signal: controller.signal })
+    ).rejects.toThrow();
   });
 });

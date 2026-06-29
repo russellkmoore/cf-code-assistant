@@ -1041,7 +1041,7 @@ function loginPage(csrfToken: string): string {
 }
 
 // --- Test exports (named exports for unit testing) ---
-export { resolveModel, isAllowedModel, timingSafeEqual, callModel, makeToolError, createMcpServer, authHandler, runAIWithMetrics, ALLOWED_MODELS, DEFAULT_MODELS, runTask, TASK_SPECS, ValidationError, BatchOutputSchema, deriveErrorType };
+export { resolveModel, isAllowedModel, timingSafeEqual, callModel, makeToolError, createMcpServer, authHandler, runAIWithMetrics, ALLOWED_MODELS, DEFAULT_MODELS, runTask, TASK_SPECS, ValidationError, BatchOutputSchema, deriveErrorType, BatchTaskInputSchema };
 export type { ModelTier, ErrorCode, AIResult, TaskKind };
 
 // --- Wire it all up ---
