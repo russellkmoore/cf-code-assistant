@@ -387,25 +387,22 @@ worker-configuration.d.ts:9464). Phase 10 does **not** revisit the model choice 
 (`src/index.ts`, `src/batch.ts`, `worker-configuration.d.ts`, all 12 test files, `.planning/`) or
 the locked CONTEXT/plan. No user confirmation needed.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Test file placement for F01/F03 (Claude's discretion per CONTEXT).**
+1. **Test file placement for F01/F03 (Claude's discretion per CONTEXT).** RESOLVED.
    - What we know: real suite is 12 files under `src/__tests__/`. The plan/CONTEXT reference a
      nonexistent `callmodel.test.ts`.
-   - What's unclear: whether to add a new `cancellation.test.ts` / `tier-override.test.ts` or extend
-     `tool-handlers.test.ts` (F01) and `runtask.test.ts` + `batch-tool.test.ts` (F03).
-   - Recommendation: extend existing suites — F01 threading in `tool-handlers.test.ts`, F03 override in
+   - Resolution: extend existing suites — F01 threading in `tool-handlers.test.ts`, F03 override in
      `runtask.test.ts` (unit) + `batch-tool.test.ts` (through the adapter). One small new file is fine
      too. Either satisfies the locked decision.
 
-2. **How `ModelTier` reaches `src/batch.ts` (Claude's discretion).**
-   - What we know: `batch.ts` already does `import type { TaskKind } from "./index";` (src/batch.ts:16).
-   - Recommendation: mirror that precedent — `import type { TaskKind, ModelTier } from "./index"`.
-     `ModelTier` is already exported-eligible (it's a top-level `type` at src/index.ts:11; confirm it's
-     in the export list — currently the export at src/index.ts:1032 does not list `ModelTier` as a type,
-     so either add it to the export or use a `import type`. `import type` of a non-exported type works
-     across the module boundary only if exported — verify and add `ModelTier` to the type exports if
-     needed). A local duplicate `type ModelTier = "fast" | "standard"` is the zero-coupling fallback.
+2. **How `ModelTier` reaches `src/batch.ts` (Claude's discretion).** RESOLVED.
+   - Correction (verified live): `ModelTier` **is already exported** at `src/index.ts:1033`
+     (`export type { ModelTier, ErrorCode, AIResult, TaskKind };`). The earlier note that line 1032
+     "does not list ModelTier" was wrong — disregard it.
+   - Resolution: mirror the `TaskKind` precedent (src/batch.ts:16) —
+     `import type { TaskKind, ModelTier } from "./index"`. No export edit needed. A local duplicate
+     `type ModelTier = "fast" | "standard"` remains a zero-coupling fallback but is unnecessary.
 
 ## Environment Availability
 
