@@ -129,4 +129,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-27 — Phase 8 complete; **milestone v2.0 Concurrent Batch Fan-out complete** (BATCH-01..10 all validated; the `code_assist_batch` seam is proven end-to-end through the real `createMcpServer` with order-preserving partial results; 162 tests green, single-task tools behavior-preserving). Next: `/gsd:complete-milestone` to archive v2.0.*
+*Last updated: 2026-06-29 — Phase 10 complete (final phase of v2.0). BATCH-F01 (real `AbortSignal` threaded into `env.AI.run` — timed-out batch tasks truly cancel; a synchronous pre-aborted guard makes `timeoutPromise` settle regardless of runtime behavior) and BATCH-F03 (tier-only per-task override via the existing allowlist/KV abstraction, maxTokens preserved) validated; single-task tools behavior-identical. Verification passed 12/12; code-review CR-01 fixed; 173 tests green. **Milestone v2.0 Concurrent Batch Fan-out is fully complete** (BATCH-01..10 + F01/F03; only BATCH-F02 internal retry remains deferred). Next: `/gsd:complete-milestone` to archive v2.0.*
