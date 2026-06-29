@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { TASK_SPECS, runTask, createMcpServer, DEFAULT_MODELS } from "../index";
 import type { TaskKind } from "../index";
 import { createMockEnv } from "./helpers";
@@ -308,6 +308,40 @@ describe("BATCH-01: runTask wiring", () => {
     const result = await runTask(env, "quickTask" as TaskKind, { instruction: "test" });
     expect(result.text).toBe("mock AI output");
     expect(result.model).toBe("@cf/qwen/qwen3-30b-a3b-fp8");
+  });
+
+});
+
+// ---------------------------------------------------------------------------
+// BATCH-F03: per-task tier override
+// ---------------------------------------------------------------------------
+
+describe("BATCH-F03: per-task tier override", () => {
+
+  it("overrides to fast model when tier:'fast' is passed (tier)", async () => {
+    const env = createMockEnv({ aiResponse: "fast output" });
+    const result = await runTask(env, "generateCode", { prompt: "hello" }, { tier: "fast" });
+    expect(result.model).toBe(DEFAULT_MODELS.fast);
+  });
+
+  it("uses kind default (standard) when no tier override is passed (tier)", async () => {
+    const env = createMockEnv({ aiResponse: "standard output" });
+    const result = await runTask(env, "generateCode", { prompt: "hello" });
+    expect(result.model).toBe(DEFAULT_MODELS.standard);
+  });
+
+  it("tier override does NOT change max_tokens — kind's maxTokens is always used (maxTokens)", async () => {
+    // generateCode has maxTokens:8192 regardless of tier
+    const envDefault = createMockEnv({ aiResponse: "output" });
+    await runTask(envDefault, "generateCode", { prompt: "hello" });
+    const defaultMaxTokens = (envDefault.AI.run as ReturnType<typeof vi.fn>).mock.calls[0][1].max_tokens;
+
+    const envOverride = createMockEnv({ aiResponse: "output" });
+    await runTask(envOverride, "generateCode", { prompt: "hello" }, { tier: "fast" });
+    const overrideMaxTokens = (envOverride.AI.run as ReturnType<typeof vi.fn>).mock.calls[0][1].max_tokens;
+
+    expect(overrideMaxTokens).toBe(defaultMaxTokens);
+    expect(overrideMaxTokens).toBe(8192);
   });
 
 });
