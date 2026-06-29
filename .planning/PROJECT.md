@@ -2,25 +2,26 @@
 
 ## What This Is
 
-A Cloudflare Workers MCP server that offloads mechanical code generation tasks from Claude (Sonnet/Opus) to @cf/qwen/qwen3-30b-a3b-fp8 via Workers AI. Claude remains the orchestrator — handling research, context gathering, architecture decisions, and workflow commands. This server handles the generation after Claude has assembled the context. Protected by OAuth 2.1 with a self-contained PIN-based auth flow.
+A Cloudflare Workers MCP server that offloads mechanical code generation tasks from Claude (Sonnet/Opus) to Workers AI. Claude remains the orchestrator — handling research, context gathering, architecture decisions, and workflow commands — and this server handles the generation after Claude has assembled the context. It exposes 13 tools across two model tiers (`fast` → `@cf/qwen/qwen3-30b-a3b-fp8`, `standard` → a Kimi coding model), including `code_assist_batch`, which fans many independent code-assist tasks out to Workers AI concurrently in one call with bounded concurrency, real per-task cancellation, per-task tier override, and an order-preserving partial-results contract. Protected by OAuth 2.1 with a self-contained PIN-based auth flow.
 
 ## Core Value
 
 Reduce Claude API token costs on mechanical code tasks without sacrificing output quality — every tool call that doesn't need Claude's reasoning saves tokens.
 
-## Current Milestone: v2.0 Concurrent Batch Fan-out
+## Current State
 
-**Goal:** Add a single new MCP tool, `code_assist_batch`, that runs many bounded code-assist tasks concurrently in one call — so a GSD executor can fan out independent leaf work (test generation, scaffolding, mechanical transforms) to Qwen instead of issuing N sequential tool calls or generating inline on an expensive model.
+**Shipped:** v2.0 Concurrent Batch Fan-out (2026-06-29) — 6 phases (5–10), 9 plans, 16 tasks, ~173 tests green.
 
-**Target features:**
-- Reusable, signal-aware `runTask(kind, input)` executor shared by single-task tools and the batch tool (behavior-preserving refactor)
-- `executeBatch()` with a bounded worker pool — default 6 in flight (`BATCH_CONCURRENCY`), never unbounded
-- Per-task timeout (default 60000ms, `BATCH_TASK_TIMEOUT_MS`) via race + best-effort abort
-- Per-call task cap (default 50, `BATCH_MAX_TASKS`) — fail fast with an actionable error over the limit
-- Order-preserving partial-results contract — each task returns `{id, index, kind, status:'ok'|'error', ...}`; one slow or failing task never stalls or aborts siblings
-- `code_assist_batch` registered with Zod input/output schemas, `structuredContent` + text summary, and MCP tool annotations
+v2.0 added `code_assist_batch`, a single MCP tool that runs many bounded code-assist tasks concurrently in one call, so a GSD executor can fan out independent leaf work (test generation, scaffolding, mechanical transforms) to Workers AI instead of issuing N sequential tool calls or generating inline on an expensive model. It is built on a shared `runTask(kind, input)` executor (one source of truth for prompt/tier/maxTokens), a pure env-free batch engine (`src/batch.ts`) with a bounded worker pool, a per-call cap, and a per-task timeout backed by a real `AbortSignal` threaded into `env.AI.run`. The dormant two-tier routing is now real: `fast` stays qwen3-30b, `standard` resolves to a Kimi coding model, and batch tasks can override their tier per task.
 
-**Why:** The single-task tool shape is the bottleneck for parallel work. Adding internal fan-out turns "K parallel Claude executors" into "K executors × an N-wide cheap batch each," keeping Claude thin (orchestrate + validate) instead of generating code inline.
+**Prior:** v1.0 Production Hardening (Phases 0–4) — security, error handling, test infrastructure (108 tests), structured logging.
+
+## Next Milestone Goals
+
+No milestone is active. Candidate scope for the next cycle (define via `/gsd:new-milestone`):
+
+- **BATCH-F02** (deferred): internal per-task retry with backoff — the one remaining batch enhancement; today callers re-issue failures.
+- Operational follow-ups surfaced during v2.0 (model-config UX, batch usage conventions in CLAUDE.md) if they prove worth the round-trip.
 
 ## Requirements
 
@@ -58,9 +59,11 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 
 ### Active
 
-<!-- Current scope. Building toward these (v2.0). Detailed in REQUIREMENTS.md. -->
+<!-- Current scope. Building toward these. Detailed in REQUIREMENTS.md (created fresh per milestone). -->
 
-- [ ] **BATCH-\***: Concurrent batch fan-out — a single `code_assist_batch` tool that runs many bounded tasks with bounded concurrency, per-task timeout, a per-call cap, and an order-preserving partial-results contract, reusing the existing per-kind executor
+_None — between milestones. v2.0 shipped all planned scope. Start the next milestone with `/gsd:new-milestone`._
+
+- [ ] **BATCH-F02** (deferred): Internal per-task retry with backoff — carried forward from v2.0; not yet scheduled.
 
 ### Out of Scope
 
@@ -76,11 +79,12 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 
 ## Context
 
-- Brownfield project. v1.0 hardened the single-session build: security (type safety, input validation, rate limiting, error sanitization), error handling (AI timeout, KV fallback, structured MCP errors), test infrastructure (108 tests), and observability (structured JSON logging).
+- Brownfield project. v1.0 hardened the single-session build (security, error handling, 108 tests, structured logging); v2.0 added concurrent batch fan-out.
+- **Current state (post-v2.0):** ~3,700 LOC TypeScript in `src/`, ~173 tests green. 13 MCP tools, two model tiers (`fast` qwen3-30b / `standard` Kimi). Stateless MCP via `createMcpHandler`, OAuth 2.1 PIN auth, KV-backed model config with self-healing.
+- **Architecture seams that shipped:** shared `runTask(env, kind, input)` + `TASK_SPECS` dispatch (one source of truth for prompt/tier/maxTokens); pure env-free batch engine `src/batch.ts` (`executeBatch`/`mapWithConcurrency`/`withTimeout`/`readBatchConfig`); `callModel` now accepts an external `AbortSignal` threaded from the batch per-task timeout into `env.AI.run` (real cancellation, no longer best-effort).
 - Codebase mapped in `.planning/codebase/` — 7 documents covering stack, architecture, conventions, testing, integrations, structure, and concerns.
-- **v2.0 integration point (grounded in code):** each tool handler in `src/index.ts` builds a prompt inline and calls `runAIWithMetrics(env, tier, prompt, maxTokens)`. `callModel()` owns an internal `AI_TIMEOUT_MS` AbortController but accepts **no external signal** — so the batch per-task timeout must rely on a race + best-effort abort, and Phase 1 extracts a reusable `runTask(kind, input)` dispatch over the 11 AI-backed kinds (routingInfo is static, no AI call).
-- Reference implementation `batch.ts` attached in `.planning/` — a conventions-correct design (env config reader, order-preserving pool, race timeout, `executeBatch`, `registerBatchTool`) to adapt, not copy verbatim.
-- Workers AI model ecosystem changes frequently — dynamic model config via KV is key to staying current.
+- Workers AI model ecosystem changes frequently — dynamic model config via KV remains key to staying current.
+- Reference artifacts `batch.ts` / `code-assist-batch-milestone.md` remain in `.planning/` as the original design notes (adapted, not copied verbatim).
 
 ## Constraints
 
@@ -89,7 +93,7 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - **Concurrency**: Bounded worker pool only — never naive `Promise.all` over all tasks
 - **Auth**: Must use MCP-standard OAuth 2.1 (Claude Code expects this)
 - **Cost**: Workers AI usage charges even in dev — tests must mock AI calls
-- **Model**: @cf/qwen/qwen3-30b-a3b-fp8 as default, configurable via KV
+- **Model**: two tiers, configurable via KV with self-healing — `fast` defaults to `@cf/qwen/qwen3-30b-a3b-fp8`, `standard` to a Kimi coding model
 - **State**: Stateless MCP server (createMcpHandler, no Durable Objects)
 - **Compatibility**: Batch refactor must be behavior-preserving — existing single-task tools and their 108 tests stay green
 
@@ -105,11 +109,14 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 | KV for model config | Hot-swap models without redeploy | ✓ Good |
 | Self-healing model fallback | Prevent misconfigured KV from breaking all tools | ✓ Good |
 | Reuse OAUTH_KV for model config | Avoid creating a second KV namespace for 2 keys | ✓ Good |
-| v2.0: reuse existing executor, don't reimplement | One source of truth for the Qwen/Workers AI call; batch injects `runTask` | — Pending |
-| v2.0: bounded pool (default 6), never `Promise.all` | Cap concurrent subrequests; avoid overrunning Workers limits | — Pending |
-| v2.0: per-call task cap 50 | One subrequest per task; safe on free (50) and paid (1000) plans | — Pending |
-| v2.0: partial-results contract (status per task) | One failure/timeout is a result entry, not a thrown batch | — Pending |
-| v2.0: prefer zero new deps (~25-line inline pool) | Keep the dependency surface minimal | — Pending |
+| v2.0: reuse existing executor, don't reimplement | One source of truth for the Qwen/Workers AI call; batch injects `runTask` | ✓ Good |
+| v2.0: bounded pool (default 6), never `Promise.all` | Cap concurrent subrequests; avoid overrunning Workers limits | ✓ Good |
+| v2.0: per-call task cap 50 | One subrequest per task; safe on free (50) and paid (1000) plans | ✓ Good |
+| v2.0: partial-results contract (status per task) | One failure/timeout is a result entry, not a thrown batch | ✓ Good |
+| v2.0: prefer zero new deps (inline worker-cursor pool) | Keep the dependency surface minimal — shipped with zero new runtime deps | ✓ Good |
+| v2.0: `standard` tier → Kimi-k2.5 (qwen3 stays `fast`) | Coding-optimized model for heavier kinds; allowlist + KV self-healing preserved | ✓ Good |
+| v2.0: tier-only per-task override (no raw model strings) | Per-task routing flexibility while keeping the MCP boundary safe via the allowlist | ✓ Good |
+| v2.0: real `AbortSignal` into `env.AI.run` (not best-effort) | Timed-out batch tasks actually cancel their subrequest instead of orphaning it | ✓ Good |
 
 ## Evolution
 
@@ -129,4 +136,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-29 — Phase 10 complete (final phase of v2.0). BATCH-F01 (real `AbortSignal` threaded into `env.AI.run` — timed-out batch tasks truly cancel; a synchronous pre-aborted guard makes `timeoutPromise` settle regardless of runtime behavior) and BATCH-F03 (tier-only per-task override via the existing allowlist/KV abstraction, maxTokens preserved) validated; single-task tools behavior-identical. Verification passed 12/12; code-review CR-01 fixed; 173 tests green. **Milestone v2.0 Concurrent Batch Fan-out is fully complete** (BATCH-01..10 + F01/F03; only BATCH-F02 internal retry remains deferred). Next: `/gsd:complete-milestone` to archive v2.0.*
+*Last updated: 2026-06-29 after v2.0 milestone. **v2.0 Concurrent Batch Fan-out shipped and archived** — 6 phases (5–10), 9 plans, 16 tasks, ~173 tests green; all 13 v2.0 requirements (BATCH-01..10 + MODEL-03 + BATCH-F01/F03) validated. Only BATCH-F02 (internal per-task retry) remains deferred. Archived to `.planning/milestones/v2.0-*`. Next: `/gsd:new-milestone` to begin the next cycle.*
