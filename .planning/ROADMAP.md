@@ -148,7 +148,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 (dependency-fo
 | 7. Register `code_assist_batch` + Result Contract | v2.0 | 1/1 | Complete   | 2026-06-26 |
 | 8. Verify End-to-End | v2.0 | 1/1 | Complete   | 2026-06-27 |
 | 9. Second model and tier split | v2.0 | 1/1 | Complete   | 2026-06-28 |
-| 10. Batch per-task cancellation and tier override | v2.0 | 3/3 | Complete   | 2026-06-29 |
+| 10. Batch per-task cancellation and tier override | v2.0 | 3/3 | Complete    | 2026-06-29 |
 
 ### Phase 9: Second model and tier split
 
