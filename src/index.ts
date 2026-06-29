@@ -799,7 +799,14 @@ function createMcpServer(env: Env) {
         };
       } else {
         const timeoutMatch = entry.error.match(/exceeded (\d+)ms timeout/);
-        const latency_ms = timeoutMatch ? parseInt(timeoutMatch[1], 10) : 0;
+        // When callModel's internal timer fires first it rejects with "AI_TIMEOUT"
+        // (no ms in the message), so the regex won't match. Fall back to the
+        // configured task timeout to keep latency telemetry meaningful.
+        const latency_ms = timeoutMatch
+          ? parseInt(timeoutMatch[1], 10)
+          : entry.error.toUpperCase().includes("AI_TIMEOUT")
+            ? cfg.taskTimeoutMs
+            : 0;
         return {
           id: entry.id,
           index: entry.index,

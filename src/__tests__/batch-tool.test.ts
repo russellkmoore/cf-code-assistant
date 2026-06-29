@@ -24,6 +24,10 @@ function getToolHandler(env: Env, toolName: string) {
  * Enrich raw executeBatch output the same way runBatch does in src/index.ts.
  * This mirrors the enrichment logic exactly so tests validate the contract
  * without needing to export the private runBatch function.
+ *
+ * @param taskTimeoutMs - configured task timeout (ms) used as latency fallback
+ *   when the error message is "AI_TIMEOUT" (no ms in message). Pass
+ *   stdCfg.taskTimeoutMs when you need accurate latency for internal-timeout tasks.
  */
 function enrich(raw: {
   total: number;
@@ -33,7 +37,7 @@ function enrich(raw: {
     | { id: string; index: number; kind: string; status: "ok"; result: unknown }
     | { id: string; index: number; kind: string; status: "error"; error: string }
   >;
-}) {
+}, taskTimeoutMs = 0) {
   const results = raw.results.map((entry) => {
     if (entry.status === "ok") {
       const aiResult = entry.result as { text: string; model: string; latency_ms: number };
@@ -47,7 +51,12 @@ function enrich(raw: {
       };
     } else {
       const timeoutMatch = entry.error.match(/exceeded (\d+)ms timeout/);
-      const latency_ms = timeoutMatch ? parseInt(timeoutMatch[1], 10) : 0;
+      // Mirror the AI_TIMEOUT fallback from runBatch in src/index.ts.
+      const latency_ms = timeoutMatch
+        ? parseInt(timeoutMatch[1], 10)
+        : entry.error.toUpperCase().includes("AI_TIMEOUT")
+          ? taskTimeoutMs
+          : 0;
       return {
         id: entry.id,
         index: entry.index,
