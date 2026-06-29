@@ -135,9 +135,17 @@ async function callModel(
   model: keyof AiModels,
   userPrompt: string,
   maxTokens: number,
+  externalSignal?: AbortSignal,
 ): Promise<string> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+  // Link external signal (batch per-task timeout) to the internal controller.
+  if (externalSignal?.aborted) {
+    controller.abort();
+  } else {
+    externalSignal?.addEventListener("abort", () => controller.abort(), { once: true });
+  }
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     controller.signal.addEventListener("abort", () => {
@@ -152,7 +160,7 @@ async function callModel(
         { role: "user", content: userPrompt },
       ],
       max_tokens: maxTokens,
-    });
+    }, { signal: controller.signal });
 
     const response = await Promise.race([aiPromise, timeoutPromise]);
     const result = response as {
@@ -174,10 +182,10 @@ interface AIResult {
   latency_ms: number;
 }
 
-async function runAIWithMetrics(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 4096): Promise<AIResult> {
+async function runAIWithMetrics(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 4096, signal?: AbortSignal): Promise<AIResult> {
   const model = await resolveModel(env, tier);
   const start = Date.now();
-  const text = await callModel(env, model, userPrompt, maxTokens);
+  const text = await callModel(env, model, userPrompt, maxTokens, signal);
   const latency_ms = Date.now() - start;
   return { text, model: model as string, latency_ms };
 }
@@ -386,11 +394,12 @@ const TASK_SPECS: Record<TaskKind, TaskSpec> = {
   },
 };
 
-async function runTask(env: Env, kind: TaskKind, input: Record<string, unknown>): Promise<AIResult> {
+async function runTask(env: Env, kind: TaskKind, input: Record<string, unknown>, opts: { tier?: ModelTier; signal?: AbortSignal } = {}): Promise<AIResult> {
   const spec = TASK_SPECS[kind];
   spec.validate?.(input);
-  const { tier, maxTokens } = spec.resolve(input);
-  return runAIWithMetrics(env, tier, spec.buildPrompt(input), maxTokens);
+  const r = spec.resolve(input);
+  const tier = opts.tier ?? r.tier;
+  return runAIWithMetrics(env, tier, spec.buildPrompt(input), r.maxTokens, opts.signal);
 }
 
 // --- Batch schemas and helpers ---
@@ -413,6 +422,7 @@ const BatchTaskInputSchema = z.object({
   input: z.record(z.string(), z.unknown()).describe(
     "Task-specific parameters. Validated per kind inside runTask, not at the batch boundary."
   ),
+  tier: z.enum(["fast", "standard"]).optional().describe("Override the model tier for this task (defaults to the kind's tier)."),
 });
 
 const TaskResultOkSchema = z.object({
@@ -753,14 +763,16 @@ function createMcpServer(env: Env) {
   async function runBatch(rawTasks: z.infer<typeof BatchTaskInputSchema>[]) {
     const cfg = readBatchConfig(env as unknown as Record<string, string | undefined>);
 
-    // Adapter: wrap real runTask; returns AIResult so handler can extract latency_ms
-    const adapter: RunTask = (batchTask, _signal) =>
-      runTask(env, batchTask.kind, batchTask.input);
+    // Adapter: wrap real runTask; returns AIResult so handler can extract latency_ms.
+    // Wires both F01 (signal from withTimeout) and F03 (per-task tier override) in one line.
+    const adapter: RunTask = (batchTask, signal) =>
+      runTask(env, batchTask.kind, batchTask.input, { tier: batchTask.tier, signal });
 
     const tasks: BatchTask[] = rawTasks.map((t, i) => ({
       id: t.id ?? String(i),
       kind: t.kind,
       input: t.input,
+      tier: t.tier,
     }));
 
     const raw = await executeBatch(tasks, cfg, adapter);
