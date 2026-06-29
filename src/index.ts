@@ -763,14 +763,16 @@ function createMcpServer(env: Env) {
   async function runBatch(rawTasks: z.infer<typeof BatchTaskInputSchema>[]) {
     const cfg = readBatchConfig(env as unknown as Record<string, string | undefined>);
 
-    // Adapter: wrap real runTask; returns AIResult so handler can extract latency_ms
-    const adapter: RunTask = (batchTask, _signal) =>
-      runTask(env, batchTask.kind, batchTask.input);
+    // Adapter: wrap real runTask; returns AIResult so handler can extract latency_ms.
+    // Wires both F01 (signal from withTimeout) and F03 (per-task tier override) in one line.
+    const adapter: RunTask = (batchTask, signal) =>
+      runTask(env, batchTask.kind, batchTask.input, { tier: batchTask.tier, signal });
 
     const tasks: BatchTask[] = rawTasks.map((t, i) => ({
       id: t.id ?? String(i),
       kind: t.kind,
       input: t.input,
+      tier: t.tier,
     }));
 
     const raw = await executeBatch(tasks, cfg, adapter);
