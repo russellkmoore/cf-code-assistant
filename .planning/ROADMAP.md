@@ -148,7 +148,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 (dependency-fo
 | 7. Register `code_assist_batch` + Result Contract | v2.0 | 1/1 | Complete   | 2026-06-26 |
 | 8. Verify End-to-End | v2.0 | 1/1 | Complete   | 2026-06-27 |
 | 9. Second model and tier split | v2.0 | 1/1 | Complete   | 2026-06-28 |
-| 10. Batch per-task cancellation and tier override | v2.0 | 0/0 | Not planned | — |
+| 10. Batch per-task cancellation and tier override | v2.0 | 0/3 | Planned | — |
 
 ### Phase 9: Second model and tier split
 
@@ -167,7 +167,17 @@ Plans:
 **Goal:** Resolve the two deferred batch requirements — BATCH-F01 (thread a real `AbortSignal` into `env.AI.run` so a timed-out batch task actually cancels instead of best-effort racing) and BATCH-F03 (tier-only per-task override in the batch input, reusing the allowlist/KV abstraction — no raw model strings at the MCP boundary). Single-task tools stay behavior-identical.
 **Requirements**: BATCH-F01, BATCH-F03 (promoted from REQUIREMENTS.md Future Requirements)
 **Depends on:** Phase 9 (F03's override is only meaningful once the two tiers resolve to different models)
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 10 to break down)
+**Wave 1**
+
+- [ ] 10-01-PLAN.md — Source: thread AbortSignal into env.AI.run (F01) + tier-only per-task override in runTask/schema/BatchTask + wire both through the batch adapter (BATCH-F01, BATCH-F03)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 10-02-PLAN.md — Tests: 6 Nyquist Wave-0 cases (F01 signal threading + pre-aborted abort; F03 tier override, maxTokens-preserved, schema accept/reject, adapter tier-flow) + 7-suite regression gate (BATCH-F01, BATCH-F03)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 10-03-PLAN.md — Docs: CLAUDE.md + README.md (signal cancellation + per-task tier), promote BATCH-F01/F03 to Validated in PROJECT.md/REQUIREMENTS.md, STATE.md Deferred table (F01/F03 resolved, F02 remains) (BATCH-F01, BATCH-F03)
