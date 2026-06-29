@@ -62,7 +62,8 @@ tool: it declares Zod input + output schemas and returns `structuredContent` plu
 
 - **Bounded pool**: default 6 in flight, env `BATCH_CONCURRENCY` — never `Promise.all` over all tasks
 - **Per-call cap**: default 50, env `BATCH_MAX_TASKS` — over-cap batches fast-reject before any dispatch
-- **Per-task timeout**: default 45000ms (= `AI_TIMEOUT_MS`), env `BATCH_TASK_TIMEOUT_MS` — race + best-effort abort
+- **Per-task timeout**: default 45000ms (= `AI_TIMEOUT_MS`), env `BATCH_TASK_TIMEOUT_MS` — race + real AbortSignal cancellation: a timed-out task threads the signal into `env.AI.run` (AiOptions), actually cancelling the subrequest rather than orphaning it
+- **Per-task tier override**: each task may include an optional `tier` field (`"fast"` or `"standard"`) to override the kind's default model tier for that task only; `maxTokens` is preserved from the kind's spec; the model is still resolved through the existing allowlist/KV abstraction — no raw model strings at the MCP boundary
 - **Partial-results contract**: each task returns `{id, index, kind, status:'ok'|'error', ...}`; one slow or failing task never stalls or aborts siblings; results are order-preserving by index
 
 ## Auth Flow
@@ -97,5 +98,8 @@ None currently tracked. The v1.0 hardening issues (`as any` model cast, missing 
 `timingSafeEqual` length leak, zero test coverage, no structured logging) were all resolved in
 the v1.0 milestone — see `.planning/PROJECT.md` Validated requirements (SEC-01/02, HARD-*, TEST-*, OBS-01).
 
+Phase 10 resolved BATCH-F01 (real AbortSignal threaded into `env.AI.run`) and BATCH-F03 (per-task
+tier override in batch input).
+
 Deferred to a future milestone (tracked in `.planning/REQUIREMENTS.md` Future Requirements):
-true per-task cancellation (BATCH-F01), internal per-task retry (BATCH-F02), per-task model/tier override (BATCH-F03).
+internal per-task retry with backoff (BATCH-F02).

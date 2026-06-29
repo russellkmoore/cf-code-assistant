@@ -46,9 +46,9 @@ Deferred to a later milestone. Tracked, not in this roadmap.
 
 ### Batch Enhancements
 
-- **BATCH-F01**: True per-task cancellation — thread an `AbortSignal` into `env.AI.run()` so a timed-out task stops spending its subrequest (currently best-effort: the orphaned call runs to completion)
+- ~~**BATCH-F01**: True per-task cancellation — thread an `AbortSignal` into `env.AI.run()` so a timed-out task stops spending its subrequest~~ **Resolved — Phase 10**: real AbortSignal threaded into `env.AI.run`; timed-out tasks cancel their subrequest instead of orphaning it.
 - **BATCH-F02**: Internal per-task retry with backoff (deferred — would multiply the 1-subrequest-per-task cap math; callers re-issue failures today)
-- **BATCH-F03**: Per-task model/tier override in the batch input (fenced off by the milestone brief; routing changes are out of scope)
+- ~~**BATCH-F03**: Per-task model/tier override in the batch input (fenced off by the milestone brief; routing changes are out of scope)~~ **Resolved — Phase 10**: tier-only per-task override (`fast`/`standard`) implemented via the existing allowlist/KV abstraction; no raw model strings at the MCP boundary.
 
 ## Out of Scope
 
@@ -83,8 +83,8 @@ duplicates.
 | BATCH-09 | Phase 7 | Planned |
 | BATCH-10 | Phase 8 | Planned |
 | MODEL-03 | Phase 9 | Planned |
-| BATCH-F01 | Phase 10 | Planned (promoted from Future) |
-| BATCH-F03 | Phase 10 | Planned (promoted from Future, narrowed to tier-only) |
+| BATCH-F01 | Phase 10 | Validated — Phase 10 |
+| BATCH-F03 | Phase 10 | Validated — Phase 10 |
 
 **Coverage:**
 - v2.0 requirements: 13 total (10 BATCH + 1 MODEL + 2 promoted from Future)

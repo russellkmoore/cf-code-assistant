@@ -53,6 +53,8 @@ Reduce Claude API token costs on mechanical code tasks without sacrificing outpu
 - ✓ **BATCH-08**: Batch envelope (`total`, `succeeded`, `failed`, `failedIds`) + human-readable `summary` string alongside the order-preserving structured `results` — v2.0 Phase 7
 - ✓ **BATCH-09**: `code_assist_batch` registered in `createMcpServer` as the repo's first structured-output tool — declares Zod input + output schemas (`result: z.unknown()`, `as const` status literals), returns `structuredContent` + text `content` together, sets the four MCP annotations, and inherits the existing OAuth gate (8 new tests, suite 161 green) — v2.0 Phase 7
 - ✓ **BATCH-10**: End-to-end seam proven through the real `createMcpServer` — a mixed 3-task batch (ok + validation-fail + deterministic timeout) returns order-preserving partial results (`results[i].index === i`) with all three `status`/`error_type` outcomes, `BatchOutputSchema.parse(structuredContent)` clean, and a `describe.skip` opt-in 45s real-wait race block; single-task tools untouched (1 new test, suite 162 green) — v2.0 Phase 8
+- ✓ **BATCH-F01**: Real AbortSignal threaded into `env.AI.run` — a timed-out batch task cancels its subrequest instead of best-effort racing; single-task handlers behavior-identical — v2.0 Phase 10
+- ✓ **BATCH-F03**: Tier-only per-task override (`fast` or `standard`) in the batch input — overrides the model via the existing allowlist/KV abstraction, maxTokens preserved; no raw model strings at the MCP boundary — v2.0 Phase 10
 
 ### Active
 
