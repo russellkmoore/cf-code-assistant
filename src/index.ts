@@ -135,9 +135,17 @@ async function callModel(
   model: keyof AiModels,
   userPrompt: string,
   maxTokens: number,
+  externalSignal?: AbortSignal,
 ): Promise<string> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+  // Link external signal (batch per-task timeout) to the internal controller.
+  if (externalSignal?.aborted) {
+    controller.abort();
+  } else {
+    externalSignal?.addEventListener("abort", () => controller.abort(), { once: true });
+  }
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     controller.signal.addEventListener("abort", () => {
@@ -152,7 +160,7 @@ async function callModel(
         { role: "user", content: userPrompt },
       ],
       max_tokens: maxTokens,
-    });
+    }, { signal: controller.signal });
 
     const response = await Promise.race([aiPromise, timeoutPromise]);
     const result = response as {
@@ -174,10 +182,10 @@ interface AIResult {
   latency_ms: number;
 }
 
-async function runAIWithMetrics(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 4096): Promise<AIResult> {
+async function runAIWithMetrics(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 4096, signal?: AbortSignal): Promise<AIResult> {
   const model = await resolveModel(env, tier);
   const start = Date.now();
-  const text = await callModel(env, model, userPrompt, maxTokens);
+  const text = await callModel(env, model, userPrompt, maxTokens, signal);
   const latency_ms = Date.now() - start;
   return { text, model: model as string, latency_ms };
 }
