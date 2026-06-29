@@ -148,9 +148,16 @@ async function callModel(
   }
 
   const timeoutPromise = new Promise<never>((_, reject) => {
+    // Synchronous check: if abort already fired before this constructor ran,
+    // the "abort" event will never re-fire for late-added listeners (Web spec).
+    // Reject immediately to avoid a permanently-pending promise.
+    if (controller.signal.aborted) {
+      reject(new Error("AI_TIMEOUT"));
+      return;
+    }
     controller.signal.addEventListener("abort", () => {
       reject(new Error("AI_TIMEOUT"));
-    });
+    }, { once: true });
   });
 
   try {
