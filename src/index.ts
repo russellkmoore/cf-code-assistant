@@ -406,6 +406,9 @@ async function runTask(env: Env, kind: TaskKind, input: Record<string, unknown>,
   spec.validate?.(input);
   const r = spec.resolve(input);
   const tier = opts.tier ?? r.tier;
+  // maxTokens always comes from the kind's spec — the caller is responsible for
+  // not overriding high-maxTokens kinds (8192) onto the fast tier, which may
+  // cause a Workers AI 400 or silent truncation (see BatchTaskInputSchema.tier desc).
   return runAIWithMetrics(env, tier, spec.buildPrompt(input), r.maxTokens, opts.signal);
 }
 
@@ -429,7 +432,13 @@ const BatchTaskInputSchema = z.object({
   input: z.record(z.string(), z.unknown()).describe(
     "Task-specific parameters. Validated per kind inside runTask, not at the batch boundary."
   ),
-  tier: z.enum(["fast", "standard"]).optional().describe("Override the model tier for this task (defaults to the kind's tier)."),
+  tier: z.enum(["fast", "standard"]).optional().describe(
+    "Override the model tier for this task (defaults to the kind's tier). " +
+    "Caller responsibility: ensure the overridden tier's model supports the kind's maxTokens. " +
+    "High-maxTokens kinds (generateCode, scaffoldTests, fixBug, generateWorkerBoilerplate: 8192) " +
+    "sent to the fast tier may cause a Workers AI 400 or silent truncation. " +
+    "Prefer overriding only low-maxTokens kinds (quickTask, explainCode: 2048-4096) to the fast tier."
+  ),
 });
 
 const TaskResultOkSchema = z.object({
