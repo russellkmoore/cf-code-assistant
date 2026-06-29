@@ -45,7 +45,7 @@ The key insight: qwen3 has no MCP access of its own. Claude is its only source o
 
 **Tiers:** `fast` uses `@cf/qwen/qwen3-30b-a3b-fp8` — a lightweight model for quick tasks. `standard` uses `@cf/moonshotai/kimi-k2.5` — a Kimi coding-optimized model for generation and review work. Both are configurable via KV at runtime — no redeploy needed.
 
-**Batch fan-out:** `code_assist_batch` runs an array of independent tasks through the shared executor with bounded concurrency (default 6, `BATCH_CONCURRENCY`), a per-call cap (default 50, `BATCH_MAX_TASKS`), and a per-task timeout (default 45s, `BATCH_TASK_TIMEOUT_MS`). Each task returns `{id, index, kind, status:'ok'|'error', ...}` independently — one slow or failing task never stalls or aborts the rest. Use it to fan out independent leaf work (test generation, scaffolding, transforms) instead of issuing N sequential calls.
+**Batch fan-out:** `code_assist_batch` runs an array of independent tasks through the shared executor with bounded concurrency (default 6, `BATCH_CONCURRENCY`), a per-call cap (default 50, `BATCH_MAX_TASKS`), and a per-task timeout (default 45s, `BATCH_TASK_TIMEOUT_MS`). Each task returns `{id, index, kind, status:'ok'|'error', ...}` independently — one slow or failing task never stalls or aborts the rest. Each task also accepts an optional `tier` field (`"fast"` or `"standard"`) to override the kind's default model tier for that task; a timed-out task is actually cancelled via a real AbortSignal passed into `env.AI.run`, stopping the subrequest rather than orphaning it. Use it to fan out independent leaf work (test generation, scaffolding, transforms) instead of issuing N sequential calls.
 
 ## Setup
 
