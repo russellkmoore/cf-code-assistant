@@ -148,7 +148,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 (dependency-fo
 | 7. Register `code_assist_batch` + Result Contract | v2.0 | 1/1 | Complete   | 2026-06-26 |
 | 8. Verify End-to-End | v2.0 | 1/1 | Complete   | 2026-06-27 |
 | 9. Second model and tier split | v2.0 | 1/1 | Complete   | 2026-06-28 |
-| 10. Batch per-task cancellation and tier override | v2.0 | 1/3 | In Progress|  |
+| 10. Batch per-task cancellation and tier override | v2.0 | 2/3 | In Progress|  |
 
 ### Phase 9: Second model and tier split
 
@@ -167,7 +167,7 @@ Plans:
 **Goal:** Resolve the two deferred batch requirements — BATCH-F01 (thread a real `AbortSignal` into `env.AI.run` so a timed-out batch task actually cancels instead of best-effort racing) and BATCH-F03 (tier-only per-task override in the batch input, reusing the allowlist/KV abstraction — no raw model strings at the MCP boundary). Single-task tools stay behavior-identical.
 **Requirements**: BATCH-F01, BATCH-F03 (promoted from REQUIREMENTS.md Future Requirements)
 **Depends on:** Phase 9 (F03's override is only meaningful once the two tiers resolve to different models)
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 **Wave 1**
@@ -176,7 +176,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 10-02-PLAN.md — Tests: 6 Nyquist Wave-0 cases (F01 signal threading + pre-aborted abort; F03 tier override, maxTokens-preserved, schema accept/reject, adapter tier-flow) + 7-suite regression gate (BATCH-F01, BATCH-F03)
+- [x] 10-02-PLAN.md — Tests: 6 Nyquist Wave-0 cases (F01 signal threading + pre-aborted abort; F03 tier override, maxTokens-preserved, schema accept/reject, adapter tier-flow) + 7-suite regression gate (BATCH-F01, BATCH-F03)
 
 **Wave 3** *(blocked on Wave 2)*
 
