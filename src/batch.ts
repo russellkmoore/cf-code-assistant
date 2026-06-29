@@ -13,7 +13,7 @@
 // Phase 7 wires this to the MCP tool registration and Zod schemas.
 // Phase 6 delivers the pure engine only.
 
-import type { TaskKind } from "./index";
+import type { TaskKind, ModelTier } from "./index";
 
 // ---------------------------------------------------------------------------
 // Config (env-overridable, sane defaults)
@@ -49,6 +49,7 @@ interface BatchTask {
   id?: string;
   kind: TaskKind;
   input: Record<string, unknown>;
+  tier?: ModelTier;
 }
 
 type RunTask = (task: BatchTask, signal: AbortSignal) => Promise<unknown>;

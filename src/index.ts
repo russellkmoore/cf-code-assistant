@@ -394,11 +394,12 @@ const TASK_SPECS: Record<TaskKind, TaskSpec> = {
   },
 };
 
-async function runTask(env: Env, kind: TaskKind, input: Record<string, unknown>): Promise<AIResult> {
+async function runTask(env: Env, kind: TaskKind, input: Record<string, unknown>, opts: { tier?: ModelTier; signal?: AbortSignal } = {}): Promise<AIResult> {
   const spec = TASK_SPECS[kind];
   spec.validate?.(input);
-  const { tier, maxTokens } = spec.resolve(input);
-  return runAIWithMetrics(env, tier, spec.buildPrompt(input), maxTokens);
+  const r = spec.resolve(input);
+  const tier = opts.tier ?? r.tier;
+  return runAIWithMetrics(env, tier, spec.buildPrompt(input), r.maxTokens, opts.signal);
 }
 
 // --- Batch schemas and helpers ---
@@ -421,6 +422,7 @@ const BatchTaskInputSchema = z.object({
   input: z.record(z.string(), z.unknown()).describe(
     "Task-specific parameters. Validated per kind inside runTask, not at the batch boundary."
   ),
+  tier: z.enum(["fast", "standard"]).optional().describe("Override the model tier for this task (defaults to the kind's tier)."),
 });
 
 const TaskResultOkSchema = z.object({
