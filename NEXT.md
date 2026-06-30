@@ -165,6 +165,33 @@ Also worth doing then (client-agnostic): embed the `write:<path>` convention int
 
 If RETIRE: skip the plugin entirely; document what replaced it (likely a Haiku-sub-agent skill).
 
+## Post-trial candidate additions (only if the trial says KEEP)
+
+Two concrete next steps, gated on KEEP + a workload that actually needs them.
+
+**1. A lean delegation channel.** Pick one — they trade off auth-reuse vs. call overhead:
+- *Reuse-auth (recommended for in-Claude-Code):* cheap subagents call the **existing MCP tools** —
+  they inherit the session's OAuth, zero new secret. ("Reuse the MCP auth" can only mean this: the
+  token isn't exposed to a raw shell `curl`, so the call has to go through the MCP tool.)
+- *Raw-direct:* add a **bearer-auth `/v1/...` route** to the Worker (its own secret) reusing
+  `runTask`. Leaner calls + reachable by non-Claude callers; writes to disk → no re-emit. Not the
+  MCP token reused — a parallel secret.
+
+**2. Plan→execute loop (server-as-planner).** New tool `code_assist_plan(goal, context)` returns a
+structured worklist, one entry per unit:
+`{ kind, tier, targetPath, contextNeeded, execMode }` with `execMode ∈ { batchable, needs-worker }`.
+Claude then executes per the plan:
+- `batchable` units → one `code_assist_batch` call (server-side fan-out).
+- `needs-worker` units → one cheap subagent each: gather context → delegate → land to `targetPath`.
+
+Guardrails: the plan is **advisory** (the server can't drive Claude's subagents — it recommends, Claude
+executes). It earns its keep **only for non-trivial decomposition** where the server knows things
+Claude doesn't (model/context limits, chunk sizing, `kind` selection); for "make these N files," skip
+the planner and call `batch` directly. The `batchable`/`needs-worker` flag is just the
+server-side-vs-Claude-side fan-out choice, promoted to a data field the planner decides.
+
+These compose: the planner produces the worklist; execution uses the channel from item 1.
+
 ## Decision checkpoint: ~2026-07-13
 
 Write the verdict here after the trial: KEEP (and why) or RETIRE (and what replaced it).
