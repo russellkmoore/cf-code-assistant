@@ -14,8 +14,9 @@
 
 set -euo pipefail
 
-PROJDIR="$HOME/.claude/projects/-Users-rmoore-Workspaces-CloudflareAIMCP"
-F="${1:-$(ls -t "$PROJDIR"/*.jsonl 2>/dev/null | head -1)}"
+# Default: newest transcript across ALL projects — so "run one task in a fresh session, then
+# measure" works from any project. Pass an explicit path to override.
+F="${1:-$(ls -t "$HOME"/.claude/projects/*/*.jsonl 2>/dev/null | head -1)}"
 [ -f "$F" ] || { echo "no transcript found: ${F:-<none>}"; exit 1; }
 echo "Session: $F"
 
