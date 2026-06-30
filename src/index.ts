@@ -130,13 +130,19 @@ interface Env {
 
 // --- Workers AI helper ---
 
+interface TokenUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
 async function callModel(
   env: Env,
   model: keyof AiModels,
   userPrompt: string,
   maxTokens: number,
   externalSignal?: AbortSignal,
-): Promise<string> {
+): Promise<{ text: string; usage?: TokenUsage }> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
 
@@ -173,11 +179,22 @@ async function callModel(
     const result = response as {
       response?: string;
       choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
     };
-    // OpenAI-style response (qwen3, llama, etc.) → choices[0].message.content
+    // OpenAI-style response (qwen3, kimi, llama, etc.) → choices[0].message.content
     // Legacy Workers AI response → response
     const text = result.choices?.[0]?.message?.content ?? result.response;
-    return text?.trim() ?? JSON.stringify(response);
+    // OpenAI-style `usage` is present on qwen/kimi; legacy models may omit it.
+    const usage: TokenUsage | undefined = result.usage
+      ? {
+          prompt_tokens: result.usage.prompt_tokens ?? 0,
+          completion_tokens: result.usage.completion_tokens ?? 0,
+          total_tokens:
+            result.usage.total_tokens ??
+            (result.usage.prompt_tokens ?? 0) + (result.usage.completion_tokens ?? 0),
+        }
+      : undefined;
+    return { text: text?.trim() ?? JSON.stringify(response), usage };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -187,14 +204,25 @@ interface AIResult {
   text: string;
   model: string;
   latency_ms: number;
+  usage?: TokenUsage;
 }
 
 async function runAIWithMetrics(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 4096, signal?: AbortSignal): Promise<AIResult> {
   const model = await resolveModel(env, tier);
   const start = Date.now();
-  const text = await callModel(env, model, userPrompt, maxTokens, signal);
+  const { text, usage } = await callModel(env, model, userPrompt, maxTokens, signal);
   const latency_ms = Date.now() - start;
-  return { text, model: model as string, latency_ms };
+  return { text, model: model as string, latency_ms, usage };
+}
+
+/** Spread helper: adds token fields to a log entry only when the model reported usage. */
+function usageLogFields(r: AIResult): Pick<TokenUsage, "prompt_tokens" | "completion_tokens" | "total_tokens"> | Record<string, never> {
+  if (!r.usage) return {};
+  return {
+    prompt_tokens: r.usage.prompt_tokens,
+    completion_tokens: r.usage.completion_tokens,
+    total_tokens: r.usage.total_tokens,
+  };
 }
 
 async function runAI(env: Env, tier: ModelTier, userPrompt: string, maxTokens = 4096): Promise<string> {
@@ -498,7 +526,7 @@ function createMcpServer(env: Env) {
     async ({ prompt, context, language, style }) => {
       try {
         const result = await runTask(env, "generateCode", { prompt, context, language, style });
-        logToolInvocation({ tool: "generateCode", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        logToolInvocation({ tool: "generateCode", tier: "standard", model: result.model, latency_ms: result.latency_ms, ...usageLogFields(result) });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
@@ -522,7 +550,7 @@ function createMcpServer(env: Env) {
     async ({ code, criteria }) => {
       try {
         const result = await runTask(env, "reviewCode", { code, criteria });
-        logToolInvocation({ tool: "reviewCode", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        logToolInvocation({ tool: "reviewCode", tier: "standard", model: result.model, latency_ms: result.latency_ms, ...usageLogFields(result) });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
@@ -546,7 +574,7 @@ function createMcpServer(env: Env) {
     async ({ code, instruction }) => {
       try {
         const result = await runTask(env, "transformCode", { code, instruction });
-        logToolInvocation({ tool: "transformCode", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        logToolInvocation({ tool: "transformCode", tier: "standard", model: result.model, latency_ms: result.latency_ms, ...usageLogFields(result) });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         if (err instanceof ValidationError) {
@@ -581,7 +609,7 @@ function createMcpServer(env: Env) {
     async ({ code, framework }) => {
       try {
         const result = await runTask(env, "scaffoldTests", { code, framework });
-        logToolInvocation({ tool: "scaffoldTests", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        logToolInvocation({ tool: "scaffoldTests", tier: "standard", model: result.model, latency_ms: result.latency_ms, ...usageLogFields(result) });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
@@ -604,7 +632,7 @@ function createMcpServer(env: Env) {
     async ({ instruction }) => {
       try {
         const result = await runTask(env, "quickTask", { instruction });
-        logToolInvocation({ tool: "quickTask", tier: "fast", model: result.model, latency_ms: result.latency_ms });
+        logToolInvocation({ tool: "quickTask", tier: "fast", model: result.model, latency_ms: result.latency_ms, ...usageLogFields(result) });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
@@ -629,7 +657,7 @@ function createMcpServer(env: Env) {
       try {
         const result = await runTask(env, "explainCode", { code, depth });
         const tier: ModelTier = depth === "detailed" ? "standard" : "fast";
-        logToolInvocation({ tool: "explainCode", tier, model: result.model, latency_ms: result.latency_ms });
+        logToolInvocation({ tool: "explainCode", tier, model: result.model, latency_ms: result.latency_ms, ...usageLogFields(result) });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
@@ -653,7 +681,7 @@ function createMcpServer(env: Env) {
     async ({ code, style }) => {
       try {
         const result = await runTask(env, "generateDocs", { code, style });
-        logToolInvocation({ tool: "generateDocs", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        logToolInvocation({ tool: "generateDocs", tier: "standard", model: result.model, latency_ms: result.latency_ms, ...usageLogFields(result) });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
@@ -676,7 +704,7 @@ function createMcpServer(env: Env) {
     async ({ code }) => {
       try {
         const result = await runTask(env, "generateTypes", { code });
-        logToolInvocation({ tool: "generateTypes", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        logToolInvocation({ tool: "generateTypes", tier: "standard", model: result.model, latency_ms: result.latency_ms, ...usageLogFields(result) });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
@@ -700,7 +728,7 @@ function createMcpServer(env: Env) {
     async ({ code, error }) => {
       try {
         const result = await runTask(env, "fixBug", { code, error });
-        logToolInvocation({ tool: "fixBug", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        logToolInvocation({ tool: "fixBug", tier: "standard", model: result.model, latency_ms: result.latency_ms, ...usageLogFields(result) });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
@@ -723,7 +751,7 @@ function createMcpServer(env: Env) {
     async ({ diff }) => {
       try {
         const result = await runTask(env, "generateCommitMessage", { diff });
-        logToolInvocation({ tool: "generateCommitMessage", tier: "fast", model: result.model, latency_ms: result.latency_ms });
+        logToolInvocation({ tool: "generateCommitMessage", tier: "fast", model: result.model, latency_ms: result.latency_ms, ...usageLogFields(result) });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
@@ -747,7 +775,7 @@ function createMcpServer(env: Env) {
     async ({ description, bindings }) => {
       try {
         const result = await runTask(env, "generateWorkerBoilerplate", { description, bindings });
-        logToolInvocation({ tool: "generateWorkerBoilerplate", tier: "standard", model: result.model, latency_ms: result.latency_ms });
+        logToolInvocation({ tool: "generateWorkerBoilerplate", tier: "standard", model: result.model, latency_ms: result.latency_ms, ...usageLogFields(result) });
         return { content: [{ type: "text", text: result.text }] };
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
@@ -795,9 +823,18 @@ function createMcpServer(env: Env) {
 
     // Enrich results: extract latency_ms and simplify result on ok path;
     // derive error_type and approximate latency_ms on error path.
+    // Aggregate Workers AI token usage across ok tasks that reported it (cheap-side
+    // cost meter for the whole batch). Stays out of the output contract — telemetry only.
+    let batchUsage: TokenUsage | undefined;
     const results = raw.results.map((entry) => {
       if (entry.status === "ok") {
         const aiResult = entry.result as AIResult;
+        if (aiResult.usage) {
+          batchUsage ??= { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+          batchUsage.prompt_tokens += aiResult.usage.prompt_tokens;
+          batchUsage.completion_tokens += aiResult.usage.completion_tokens;
+          batchUsage.total_tokens += aiResult.usage.total_tokens;
+        }
         return {
           id: entry.id,
           index: entry.index,
@@ -837,6 +874,14 @@ function createMcpServer(env: Env) {
         ? `${raw.succeeded}/${raw.total} tasks succeeded.`
         : `${raw.succeeded}/${raw.total} tasks succeeded. ${raw.failed} failed: ${failedIds.join(", ")}.`;
 
+    logToolInvocation({
+      tool: "code_assist_batch",
+      tier: "standard",
+      model: "mixed",
+      latency_ms: 0,
+      ...(batchUsage ?? {}),
+    });
+
     return { total: raw.total, succeeded: raw.succeeded, failed: raw.failed, failedIds, results, summary };
   }
 
@@ -865,12 +910,6 @@ function createMcpServer(env: Env) {
     async ({ tasks }) => {
       try {
         const structured = await runBatch(tasks);
-        logToolInvocation({
-          tool: "code_assist_batch",
-          tier: "standard",
-          model: "mixed",
-          latency_ms: 0,
-        });
         return {
           content: [{ type: "text", text: structured.summary }],
           structuredContent: structured,

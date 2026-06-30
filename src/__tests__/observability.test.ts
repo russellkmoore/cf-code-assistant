@@ -91,6 +91,89 @@ describe("OBS-01: Tool invocation logging", () => {
 });
 
 // ---------------------------------------------------------------------------
+// OBS-01b: Workers AI token usage accounting (cheap-side cost meter)
+// ---------------------------------------------------------------------------
+
+describe("OBS-01b: token usage accounting", () => {
+  it("includes token fields when the model reports usage", async () => {
+    const env = createMockEnv();
+    (env.AI.run as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      response: "ok",
+      usage: { prompt_tokens: 12, completion_tokens: 34, total_tokens: 46 },
+    });
+
+    const handler = getToolHandler(env, "quickTask");
+    await handler({ instruction: "task" }, undefined);
+
+    const invocation = parseLogCalls(logSpy).find(
+      (l: any) => l.category === "tool_invocation"
+    ) as any;
+
+    expect(invocation.prompt_tokens).toBe(12);
+    expect(invocation.completion_tokens).toBe(34);
+    expect(invocation.total_tokens).toBe(46);
+  });
+
+  it("derives total_tokens from prompt+completion when the model omits it", async () => {
+    const env = createMockEnv();
+    (env.AI.run as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      response: "ok",
+      usage: { prompt_tokens: 5, completion_tokens: 7 },
+    });
+
+    const handler = getToolHandler(env, "quickTask");
+    await handler({ instruction: "task" }, undefined);
+
+    const invocation = parseLogCalls(logSpy).find(
+      (l: any) => l.category === "tool_invocation"
+    ) as any;
+
+    expect(invocation.total_tokens).toBe(12);
+  });
+
+  it("omits token fields entirely when the model reports no usage", async () => {
+    const env = createMockEnv({ aiResponse: "no usage here" });
+    const handler = getToolHandler(env, "quickTask");
+    await handler({ instruction: "task" }, undefined);
+
+    const invocation = parseLogCalls(logSpy).find(
+      (l: any) => l.category === "tool_invocation"
+    ) as any;
+
+    expect(invocation).not.toHaveProperty("prompt_tokens");
+    expect(invocation).not.toHaveProperty("completion_tokens");
+    expect(invocation).not.toHaveProperty("total_tokens");
+  });
+
+  it("aggregates token usage across ok tasks in a batch invocation", async () => {
+    const env = createMockEnv();
+    (env.AI.run as ReturnType<typeof vi.fn>).mockResolvedValue({
+      response: "ok",
+      usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+    });
+
+    const handler = getToolHandler(env, "code_assist_batch");
+    await handler(
+      {
+        tasks: [
+          { kind: "quickTask", input: { instruction: "a" } },
+          { kind: "quickTask", input: { instruction: "b" } },
+        ],
+      },
+      undefined
+    );
+
+    const invocation = parseLogCalls(logSpy).find(
+      (l: any) => l.category === "tool_invocation" && l.tool === "code_assist_batch"
+    ) as any;
+
+    expect(invocation.prompt_tokens).toBe(20);
+    expect(invocation.completion_tokens).toBe(40);
+    expect(invocation.total_tokens).toBe(60);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // OBS-02: Tool error logging
 // ---------------------------------------------------------------------------
 

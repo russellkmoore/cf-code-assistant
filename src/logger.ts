@@ -9,6 +9,12 @@ export interface ToolInvocationLog {
   tier: string;
   model: string;
   latency_ms: number;
+  // Workers AI token usage, when the model reports it (OpenAI-style `usage`).
+  // Omitted for models/responses that don't return usage. This is the cheap-side
+  // cost meter — it does NOT measure the orchestrating Claude's tokens.
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
 }
 
 export interface ToolErrorLog {
