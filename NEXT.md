@@ -169,13 +169,18 @@ If RETIRE: skip the plugin entirely; document what replaced it (likely a Haiku-s
 
 Two concrete next steps, gated on KEEP + a workload that actually needs them.
 
-**1. A lean delegation channel.** Pick one — they trade off auth-reuse vs. call overhead:
-- *Reuse-auth (recommended for in-Claude-Code):* cheap subagents call the **existing MCP tools** —
-  they inherit the session's OAuth, zero new secret. ("Reuse the MCP auth" can only mean this: the
-  token isn't exposed to a raw shell `curl`, so the call has to go through the MCP tool.)
-- *Raw-direct:* add a **bearer-auth `/v1/...` route** to the Worker (its own secret) reusing
-  `runTask`. Leaner calls + reachable by non-Claude callers; writes to disk → no re-emit. Not the
-  MCP token reused — a parallel secret.
+**1. A lean delegation channel.** Two paths, by consumer:
+- *Reuse-auth (Claude-Code-only — simplest, ~already built):* cheap subagents call the **existing MCP
+  tools**; they inherit the session OAuth, zero new secret. The only gap is **advisory guidance**, not
+  code: "bulk file-gen → `code_assist_batch` with `write:` ids; wrap in a **haiku subagent only when
+  delegation is iterative/multi-round** (one-shot batch + the hook already keeps bytes off context — a
+  subagent just adds spawn overhead)." Lives in the `cf-delegate` skill + routing doc. Cheapest item here.
+- *Raw-direct (large artifacts, or non-Claude / sandbox callers):* a `/v1/...` route authed by a
+  **short-lived, scoped token minted by the authenticated MCP/`plan` call** (KV-TTL, or HMAC-signed
+  `exp`; optionally single-use) — not a standing secret. Leaked ≠ reusable. **This is the correct auth
+  for handing capability to a sandbox** (never give a code-execution context a long-lived secret) and
+  supersedes the earlier static-bearer idea. Marginal benefit is small for Claude-Code-only-with-hook;
+  it earns its place once artifacts must bypass the MCP response or a non-Claude/sandbox caller needs in.
 
 **2. Plan→execute loop (server-as-planner).** New tool `code_assist_plan(goal, context)` returns a
 structured worklist, one entry per unit:
