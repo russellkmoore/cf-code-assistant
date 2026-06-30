@@ -13,7 +13,17 @@ Adding features (BATCH-F02 retry, more tools) polishes a tool whose marginal val
 Haiku sub-agent is thin. That is the "ineffective project" trap. Resist it until the trial below
 proves the server earns its keep.
 
-## Step 1 — One end-to-end verification (fresh Claude Code session)
+## Step 1 — One end-to-end verification — ✅ DONE 2026-06-30
+
+Verified live: `code_assist_batch` is served by the connector; a `write:<path>` task is written to
+disk by the `cf-write-results` hook (markdown fences stripped) and the tool result is replaced with a
+one-line summary — the generated body never re-enters Claude's context, no manual `Write`. Two hook
+bugs were fixed during verification (input field is `tool_response` JSON-string, not
+`tool_result.structuredContent`; `updatedToolOutput` is a plain string — honored in this build).
+Server token logging confirmed in `wrangler tail`. **The re-emit-free mechanism works.** Remaining
+work is the trial below (mechanism proven; the question is value-vs-Haiku-subagent).
+
+### (original verification steps, for reference)
 
 The current session can't test this (MCP tool lists load at connect time; the batch tool + hook
 weren't present then). In a **new** session:
