@@ -3,6 +3,21 @@
 > Forward-looking thinking doc. Nothing here is scheduled — it's the map of where this *could* go,
 > with honest "when to reach for it" triggers. Build decisions still gate on the `NEXT.md` trial.
 
+## Scope decision & design principle (2026-06-30)
+
+**This tool is written entirely for Claude as a code assistant. Simplicity is a primary goal.**
+
+Decision: **stick with the pure MCP route.** It already solves the consumption problem — the cheap
+model generates the file content and the `cf-write-results` hook lands it on disk, so neither
+ingestion nor re-emit bloats Claude's context. The direct-API / bearer-proxy / **ephemeral-minted-token**
+channel and the sandbox/farm directions below are **deferred, not planned** — they only earn their
+place once the consumer is *not Claude* (a sandbox, an external script) or artifacts outgrow the MCP
+response. Liked conceptually, out of scope for *this* tool; revisit as a future phase or a separate
+project.
+
+Use this as the filter for everything below: **if an idea adds surface area without serving
+Claude-as-code-assistant simplicity, it waits.**
+
 ## The core principle
 
 **Claude's context is for decisions, not data.** Claude should orchestrate over *references/handles*;
