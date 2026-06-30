@@ -81,6 +81,29 @@ Measure all of them.
   boilerplate). Aim for ~8–12 tasks; counterbalance which arm you run first.
 - Log every run in the table below the moment it happens — not from memory at the end.
 
+### Capture mechanics (how to get each number)
+
+The session transcripts (`~/.claude/projects/<proj>/<session>.jsonl`) record exact per-turn token
+usage, every tool call, and timestamps — use them, not gut feel. Workflow per task:
+
+1. **Fresh session, one task only.** Do the single task, then end the session.
+2. **Run the capture script:** `.planning/bench/measure-session.sh` (defaults to the newest
+   transcript for this repo). It prints: output/input tokens by model, the tool-call tally
+   (adoption), summed `subagent_tokens`, and wall-clock.
+   - **Opus output tokens** = the headline cost number (the $ driver, directly comparable across arms).
+   - **Tool tally** = which arm you actually used (adoption).
+3. **MCP cheap-tier tokens:** not in the transcript (they run on Cloudflare). In a side terminal
+   during the task: `npx wrangler tail --format pretty` and read the `prompt_tokens`/`completion_tokens`
+   on the `tool_invocation` line.
+4. **Haiku cheap-tier tokens:** the `subagent_tokens` figure in the Agent result when it completes
+   (cheap; not decision-critical — the Opus main-loop is what matters).
+5. **Quality:** objective proxy — does `npx tsc --noEmit` / the test suite pass on the output, and how
+   many lines did you edit before accepting it? (`git diff --stat` after acceptance). Record asis/minor/major.
+6. **Adoption:** the tool tally per session; at trial end, scan the period's transcripts for
+   `code_assist_batch` vs `Task`(haiku) frequency.
+
+`/cost` is a quick fallback for a rough $/session, but the script gives the precise, comparable numbers.
+
 ### 5. Pre-registered decision rule (commit before running)
 **KEEP** only if ALL hold across the trial:
 - quality of (c) is **non-inferior** to (d) (no worse on the 3-point scale on ≥80% of tasks), AND
