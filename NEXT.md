@@ -41,6 +41,80 @@ Use it on real work. The honest decision rule:
 Never use the offload-then-hand-splice path (call a tool, get code back, write it yourself) — it
 pays for the body two-to-three times. See `BENCHMARK.md`.
 
+## How to decide scientifically (not by vibes)
+
+The trap is deciding by gut after the fact. Pre-register the hypothesis, metrics, and thresholds
+*now*, measure objectively, and let the rule decide. With a solo dev's volume this is
+"decision-grade evidence," not p-values — the goal is a clear directional signal against a line you
+committed to in advance.
+
+### 1. The hypothesis (falsifiable)
+> For real mechanical code-gen tasks, the cf-code-assistant **batch + write-hook** path produces an
+> accepted result at materially lower cost and/or time than the simplest alternative (a Haiku
+> sub-agent that writes the file), without a quality regression — and I actually reach for it.
+
+If that's false, RETIRE (or keep only for the cross-client niche).
+
+### 2. The arms to compare (drop the known-loser)
+- **(d) Haiku sub-agent** — the honest baseline / best alternative (`Task`, `model: haiku`, writes file).
+- **(c) MCP batch + write-hook** — the thing under test.
+- *(skip (a) inline and (b) offload-then-splice — (b) is already proven worst; (a) is only a sanity floor.)*
+
+The real discriminators will NOT be Opus tokens (both (c) and (d) are re-emit-free, so they ~tie
+there). Expect the difference to show in **quality, wall-clock on multi-file fan-out, and adoption.**
+Measure all of them.
+
+### 3. Metrics (per task)
+- **Primary — quality:** accepted as-is? minor edit? major rework / unusable? (3-point scale). A
+  cheaper wrong answer is worthless, so this gates everything.
+- **Cost:** Opus output+input tokens (the $ driver) via `/cost` in a fresh session; cheap-tier
+  tokens via `wrangler tail` (MCP) or the agent's reported `subagent_tokens` (Haiku).
+- **Wall-clock:** seconds to result. This is where batch's server-side concurrency should win on
+  big fan-outs — or fail to.
+- **Adoption (the silent killer):** did you invoke it *unprompted*, or did you have to force
+  yourself? Tally eligible tasks vs. tasks you actually used it on.
+
+### 4. Controls (so the numbers mean something)
+- One task per **fresh** session (no context contamination); read `/cost` immediately after.
+- Give both arms the **same gathered context** — don't let one win by better inputs.
+- Use **real tasks from actual work**, stratified by type (test scaffolding, type gen, transforms,
+  boilerplate). Aim for ~8–12 tasks; counterbalance which arm you run first.
+- Log every run in the table below the moment it happens — not from memory at the end.
+
+### 5. Pre-registered decision rule (commit before running)
+**KEEP** only if ALL hold across the trial:
+- quality of (c) is **non-inferior** to (d) (no worse on the 3-point scale on ≥80% of tasks), AND
+- (c) wins on at least one of {wall-clock on ≥5-file fan-outs, total $ } by a margin you'd notice
+  (pick the line now, e.g. **≥30%** faster on fan-outs **or** ≥50% cheaper $/task), AND
+- **adoption ≥ 50%** of eligible tasks (if you don't reach for it, it's dead regardless of metrics).
+
+**Otherwise RETIRE** — except keep it solely if you hit the **cross-client need** (called it from
+Claude Desktop / a script / another machine) at least once for real. That niche is binary: you
+either needed it or you didn't.
+
+### 6. Results log (fill as you go)
+
+| Date | Task (type) | Arm | Quality (asis/minor/major) | Opus out tok | cheap tok | wall-clock s | Used unprompted? |
+|------|-------------|-----|----------------------------|--------------|-----------|--------------|------------------|
+|      |             |     |                            |              |           |              |                  |
+
+## If KEEP → package as a Claude Code plugin
+
+Only after the rule says KEEP. The pieces are currently hand-wired and scattered across `~/.claude/`
+(MCP registration in `.claude.json`, the `cf-write-results` hook + `settings.json`, the `cf-delegate`
+skill, the routing doc) — which is what produced the placeholder-URL and name-mismatch bugs. A plugin
+bundles all four into one installable, consistent, shareable unit and is the natural "productionize"
+step:
+- declare the MCP server (fixes the registration drift),
+- ship the `cf-delegate` skill,
+- ship the `cf-write-results` hook,
+- ship the condensed routing rule.
+
+Also worth doing then (client-agnostic): embed the `write:<path>` convention into the
+`code_assist_batch` tool *description* on the server so any MCP client discovers it, not just yours.
+
+If RETIRE: skip the plugin entirely; document what replaced it (likely a Haiku-sub-agent skill).
+
 ## Decision checkpoint: ~2026-07-13
 
 Write the verdict here after the trial: KEEP (and why) or RETIRE (and what replaced it).
