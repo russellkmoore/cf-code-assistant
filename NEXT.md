@@ -132,6 +132,16 @@ the real quality bar there is **Kimi-k2.5 vs Haiku 4.5** — watch for dropped `
 Claude Desktop / a script / another machine) at least once for real. That niche is binary: you
 either needed it or you didn't.
 
+### Pre-trial observations (not controlled runs — context only)
+
+- **2026-06-30 — K2.7 Code confirmed live.** `wrangler tail` shows standard tier resolving to
+  `@cf/moonshotai/kimi-k2.7-code` (latency ~18s, 367 prompt / 537 completion tokens).
+- **Quality tic to watch:** on the `generateTypes` cart.js fixture, K2.7 Code typed all six functions
+  correctly and `export`ed them, but declared the supporting interfaces **without `export`**
+  (intermittent across runs/models — same as the earlier batch run). A types file may need a one-line
+  edit to export interfaces. Candidate fix if it persists: use K2.7's structured-output (JSON schema)
+  mode — a server change, post-trial.
+
 ### 6. Results log (fill as you go)
 
 | Date | Task (type) | Arm | Quality (asis/minor/major) | Opus out tok | cheap tok | wall-clock s | Used unprompted? |
