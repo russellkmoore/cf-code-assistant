@@ -104,6 +104,29 @@ npx tsc --noEmit     # Type-check
 npm test             # Run tests (162 tests)
 ```
 
+## Token efficiency & known limitations
+
+The point of this server is to spend fewer **Claude** tokens. That only happens when a generated
+artifact reaches disk **without Claude re-emitting it** — see [BENCHMARK.md](BENCHMARK.md) for the
+measured economics. Practical rules:
+
+- **Producing files?** Use `code_assist_batch` with each task `id` set to `write:<path>` plus the
+  `cf-write-results` PostToolUse hook (writes results to disk, keeps the bodies out of Claude's
+  context). Calling a single tool and then writing the file yourself **costs more than generating
+  inline** — avoid it.
+- **Single-task tools** (`generateTypes`, `reviewCode`, `explainCode`, `generateCommitMessage`, …)
+  are best when you actually need the output *in context* to reason over — not as a file writer.
+- **For one-off file generation, a Haiku sub-agent that writes the file directly is often simpler**
+  and just as cheap on Claude tokens (no deploy/auth/hook). Reach for this server when you need
+  large fan-out (many files in one call) and server-side concurrency.
+
+**Model fragility:** the default models (`@cf/qwen/qwen3-30b-a3b-fp8`, `@cf/moonshotai/kimi-k2.5`)
+are hard-coded defaults. Cloudflare's catalog changes; if a model is delisted you'll get a 4xx.
+Override at runtime via the KV keys `config:model:fast` / `config:model:standard` (self-heals to the
+default on an invalid id). If output quality is poor: gather richer `context`, or switch the kind to
+the `standard` tier. Token usage per call is now logged (`prompt_tokens`/`completion_tokens` in
+`wrangler tail`) so you can see the cheap-side cost.
+
 ## Security
 
 - OAuth 2.1 with PIN-based authorization
