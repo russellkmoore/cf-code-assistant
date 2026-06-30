@@ -12,7 +12,7 @@ Every `generateCode`, `scaffoldTests`, or `transformCode` call that doesn't need
 Claude Code ──MCP──▶ cf-code-assistant (Cloudflare Worker)
                           │
                           ▼
-                     Workers AI (qwen3-30b / kimi-k2.5)
+                     Workers AI (qwen3-30b / kimi-k2.7-code)
                           │
                           ▼
                      Generated code ──MCP──▶ back to Claude
@@ -43,7 +43,7 @@ The key insight: qwen3 has no MCP access of its own. Claude is its only source o
 | `routingInfo` | — | Returns model tier info (no AI call) |
 | `code_assist_batch` | per-task | Fan many bounded tasks out concurrently, one call, order-preserving partial results |
 
-**Tiers:** `fast` uses `@cf/qwen/qwen3-30b-a3b-fp8` — a lightweight model for quick tasks. `standard` uses `@cf/moonshotai/kimi-k2.5` — a Kimi coding-optimized model for generation and review work. Both are configurable via KV at runtime — no redeploy needed.
+**Tiers:** `fast` uses `@cf/qwen/qwen3-30b-a3b-fp8` — a lightweight model for quick tasks. `standard` uses `@cf/moonshotai/kimi-k2.7-code` — a code-optimized Kimi model (262k context, structured outputs) for generation and review work. Both are configurable via KV at runtime — no redeploy needed.
 
 **Batch fan-out:** `code_assist_batch` runs an array of independent tasks through the shared executor with bounded concurrency (default 6, `BATCH_CONCURRENCY`), a per-call cap (default 50, `BATCH_MAX_TASKS`), and a per-task timeout (default 45s, `BATCH_TASK_TIMEOUT_MS`). Each task returns `{id, index, kind, status:'ok'|'error', ...}` independently — one slow or failing task never stalls or aborts the rest. Each task also accepts an optional `tier` field (`"fast"` or `"standard"`) to override the kind's default model tier for that task; a timed-out task is actually cancelled via a real AbortSignal passed into `env.AI.run`, stopping the subrequest rather than orphaning it. Use it to fan out independent leaf work (test generation, scaffolding, transforms) instead of issuing N sequential calls.
 
@@ -120,8 +120,10 @@ measured economics. Practical rules:
   and just as cheap on Claude tokens (no deploy/auth/hook). Reach for this server when you need
   large fan-out (many files in one call) and server-side concurrency.
 
-**Model fragility:** the default models (`@cf/qwen/qwen3-30b-a3b-fp8`, `@cf/moonshotai/kimi-k2.5`)
+**Model fragility:** the default models (`@cf/qwen/qwen3-30b-a3b-fp8`, `@cf/moonshotai/kimi-k2.7-code`)
 are hard-coded defaults. Cloudflare's catalog changes; if a model is delisted you'll get a 4xx.
+(`kimi-k2.7-code` is newer than the generated `AiModels` type, so it's cast once at its definition in
+`src/index.ts` — the runtime allowlist remains the guardrail.)
 Override at runtime via the KV keys `config:model:fast` / `config:model:standard` (self-heals to the
 default on an invalid id). If output quality is poor: gather richer `context`, or switch the kind to
 the `standard` tier. Token usage per call is now logged (`prompt_tokens`/`completion_tokens` in

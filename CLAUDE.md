@@ -52,7 +52,7 @@ server.registerTool(
 | Tier | KV Key | Default | Used By |
 |------|--------|---------|---------|
 | `fast` | `config:model:fast` | `@cf/qwen/qwen3-30b-a3b-fp8` | quickTask, explainCode (brief/eli5), generateCommitMessage |
-| `standard` | `config:model:standard` | `@cf/moonshotai/kimi-k2.5` | generateCode, reviewCode, transformCode, scaffoldTests, explainCode (detailed), generateDocs, generateTypes, fixBug, generateWorkerBoilerplate |
+| `standard` | `config:model:standard` | `@cf/moonshotai/kimi-k2.7-code` | generateCode, reviewCode, transformCode, scaffoldTests, explainCode (detailed), generateDocs, generateTypes, fixBug, generateWorkerBoilerplate |
 
 ## Batch Tool
 

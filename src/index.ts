@@ -10,9 +10,16 @@ import type { BatchTask, RunTask } from "./batch";
 
 type ModelTier = "fast" | "standard";
 
+// Kimi K2.7 Code is live on Workers AI (released 2026-06-12) and is the code-optimized standard-tier
+// model. It is not yet a key of the generated AiModels type (the wrangler/workers-types catalog lags
+// the live platform — confirmed absent even on wrangler@latest as of 2026-06-30), so we cast once here
+// at the definition point. The runtime allowlist + KV self-heal below remain the real guardrail; this
+// is NOT a return to the broad `as any` routing cast that SEC-01 removed.
+const STANDARD_MODEL = "@cf/moonshotai/kimi-k2.7-code" as keyof AiModels;
+
 const ALLOWED_MODELS = [
   "@cf/qwen/qwen3-30b-a3b-fp8",
-  "@cf/moonshotai/kimi-k2.5",
+  STANDARD_MODEL,
 ] as const satisfies ReadonlyArray<keyof AiModels>;
 
 type AllowedModel = (typeof ALLOWED_MODELS)[number];
@@ -23,7 +30,7 @@ function isAllowedModel(model: string): model is AllowedModel {
 
 const DEFAULT_MODELS: Record<ModelTier, keyof AiModels> = {
   fast: "@cf/qwen/qwen3-30b-a3b-fp8",
-  standard: "@cf/moonshotai/kimi-k2.5",
+  standard: STANDARD_MODEL,
 };
 
 const AI_TIMEOUT_MS = 45_000;

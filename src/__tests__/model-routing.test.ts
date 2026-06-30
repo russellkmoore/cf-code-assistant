@@ -7,8 +7,16 @@ describe("SEC-01/SEC-03: isAllowedModel", () => {
     expect(isAllowedModel("@cf/qwen/qwen3-30b-a3b-fp8")).toBe(true);
   });
 
-  it("returns true for allowlisted standard tier model (DEFAULT_MODELS.standard / kimi-k2.5)", () => {
+  it("returns true for allowlisted standard tier model (DEFAULT_MODELS.standard / kimi-k2.7-code)", () => {
     expect(isAllowedModel(DEFAULT_MODELS.standard)).toBe(true);
+  });
+
+  it("standard tier defaults to the code-optimized kimi-k2.7-code model", () => {
+    expect(DEFAULT_MODELS.standard).toBe("@cf/moonshotai/kimi-k2.7-code");
+  });
+
+  it("the deprecated kimi-k2.5 is no longer allowlisted", () => {
+    expect(isAllowedModel("@cf/moonshotai/kimi-k2.5")).toBe(false);
   });
 
   it("returns false for non-allowlisted model", () => {
