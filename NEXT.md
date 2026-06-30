@@ -121,6 +121,13 @@ usage, every tool call, and timestamps — use them, not gut feel. Workflow per 
   (pick the line now, e.g. **≥30%** faster on fan-outs **or** ≥50% cheaper $/task), AND
 - **adoption ≥ 50%** of eligible tasks (if you don't reach for it, it's dead regardless of metrics).
 
+**Quality remediation before RETIRE:** if quality is the *only* failing criterion, try these before
+concluding — they're levers a one-off Haiku sub-agent doesn't centralize: (a) pass richer `context`;
+(b) for `fast`-tier kinds, override the task `tier` to `standard` (Kimi); (c) hot-swap the standard
+model via KV `config:model:standard` to a stronger coding model (no redeploy, self-healing). Note:
+`standard`-tier kinds (generateTypes/generateCode/scaffoldTests/fixBug/…) are *already* Kimi-k2.5, so
+the real quality bar there is **Kimi-k2.5 vs Haiku 4.5** — watch for dropped `export`s / edge cases.
+
 **Otherwise RETIRE** — except keep it solely if you hit the **cross-client need** (called it from
 Claude Desktop / a script / another machine) at least once for real. That niche is binary: you
 either needed it or you didn't.
