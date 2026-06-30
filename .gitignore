@@ -4,3 +4,7 @@ dist/
 .dev.vars
 worker-configuration.d.ts
 coverage/
+
+# Transient session/working state
+scratchpad/
+.planning/HANDOFF.json
